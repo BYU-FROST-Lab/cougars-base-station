@@ -852,9 +852,7 @@ class MainWindow(QMainWindow):
             if dlg.exec():
                 start_config = dlg.get_states()
                 selected_files = list(start_config['selected_files'].values())
-                msg = LoadMission.Request()
-                msg.vehicle_id = vehicle
-                msg.mission_path = selected_files[i]
+                msg.mission_path = String(data=selected_files[i])
                 self.ros_node.load_mission_client.call_async(msg)
                 i+=1
 
