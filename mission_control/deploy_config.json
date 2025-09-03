@@ -1,6 +1,6 @@
 {
-  "vehicles": [
-    {
+  "vehicles": {
+    "1": {
       "name": "Coug1",
       "remote_user": "frostlab",
       "remote_host": "192.168.0.101",
@@ -9,7 +9,7 @@
       "param_file": "coug1_params.yaml",
       "fleet_param_file": "fleet_params.yaml"
     },
-    {
+    "2": {
       "name": "Coug2",
       "remote_user": "frostlab",
       "remote_host": "192.168.0.102",
@@ -17,6 +17,33 @@
       "mission_file": "coug2_mission.json",
       "param_file": "coug2_params.yaml",
       "fleet_param_file": "fleet_params.yaml"
+    },
+    "3": {
+      "name": "Coug3",
+      "remote_user": "frostlab",
+      "remote_host": "192.168.2.103",
+      "remote_path": "/home/frostlab/cougars/config/deploy_tmp/",
+      "mission_file": "coug3_mission.json",
+      "param_file": "coug3_params.yaml",
+      "fleet_param_file": "fleet_params.yaml"
+    },
+    "4": {
+      "name": "Coug4",
+      "remote_user": "frostlab",
+      "remote_host": "192.168.0.104",
+      "remote_path": "/home/frostlab/cougars/config/deploy_tmp/",
+      "mission_file": "coug4_mission.json",
+      "param_file": "coug4_params.yaml",
+      "fleet_param_file": "fleet_params.yaml"
+    },
+    "0": {
+      "name": "Coug0",
+      "remote_user": "bjm225",
+      "remote_host": "10.2.118.72",
+      "remote_path": "~/cougars/config/deploy_tmp/",
+      "mission_file": "mission.yaml",
+      "param_file": "coug0_params.yaml",
+      "fleet_param_file": "fleet_params.yaml"
     }
-  ]
+  }
 }

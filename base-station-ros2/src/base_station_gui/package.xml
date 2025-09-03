@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
-  <name>base_station_gui2</name>
+  <name>base_station_gui</name>
   <version>0.0.0</version>
   <description>TODO: Package description</description>
   <maintainer email="frostlab@todo.todo">frostlab</maintainer>
@@ -15,6 +15,8 @@
   <build_depend>base_station_interfaces</build_depend>
   <exec_depend>base_station_interfaces</exec_depend>
   <exec_depend>base_station_utils</exec_depend>
+  <build_depend>dvl_msgs</build_depend>
+  <exec_depend>dvl_msgs</exec_depend>
   <build_depend>frost_interfaces</build_depend>
   <build_export_depend>frost_interfaces</build_export_depend>
   <exec_depend>frost_interfaces</exec_depend>

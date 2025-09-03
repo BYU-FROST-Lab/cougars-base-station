@@ -1,7 +1,8 @@
 uint8 vehicle_id
 
 frost_interfaces/SystemStatus safety_status
-nav_msgs/Odometry smoothed_odom
+dvl_msgs/DVLDR dvl_pos
+dvl_msgs/DVL dvl_vel
 sensor_msgs/BatteryState battery_state
 geometry_msgs/PoseWithCovarianceStamped depth_data
 sensor_msgs/FluidPressure pressure

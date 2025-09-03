@@ -4,7 +4,7 @@
 /**:
   ros__parameters:
     mission_start_time: 1739302061
-    vehicles_in_mission: [1,2]
+    vehicles_in_mission: [1,2,3,4]
     
 
 
@@ -19,7 +19,7 @@
     # During a mission, the base station requests a status update from each vehicle one at
     # a time on a schedule.  The request frequency is the number of seconds between the
     # status request of two vehicles.
-    status_request_frequency_seconds: 4
+    status_request_frequency_seconds: 2.0
 
 /base_station_modem:
   ros__parameters:
@@ -35,9 +35,9 @@
     
     debug_mode: False
 
-    ping_frequency: 3
+    ping_frequency: 1
 
-    xbee_port: /dev/ttyUSB0
+    xbee_port: /dev/frost/xbee_radio
     xbee_baud: 9600
 
 
@@ -48,7 +48,7 @@
     vehicle_ID: 15
 
     logging_verbosity: 0
-    seatrac_serial_port: /dev/ttyUSB1
+    seatrac_serial_port: /dev/frost/rs232_connector_seatrac
 
 
 /mapviz:

@@ -1,13 +1,15 @@
 # Created by Seth Ricks, July 2025
 
 # Standard library imports
-import sys, random, time, os, re
+import sys, random, os, re
 import yaml, json
 import base64, math, functools
 from functools import partial
-import subprocess, multiprocessing, threading
+import multiprocessing, threading, paramiko
+from base_station_interfaces.srv import Init
 import tkinter
-from transforms3d.euler import quat2euler
+import rclpy
+from std_msgs.msg import Header, Bool
 
 # PyQt6 imports for GUI components
 from PyQt6.QtWidgets import (QScrollArea, QApplication, QMainWindow, 
@@ -21,14 +23,18 @@ from PyQt6.QtGui import (QColor, QPalette, QFont, QPixmap, QKeySequence, QShortc
 )
 from PyQt6.QtCore import QSize, QByteArray, Qt, QTimer, pyqtSignal, QObject, QEvent, QThread
 
+from pathlib import Path
 # ROS 2 service imports
-from base_station_interfaces.srv import BeaconId, ModemControl
+from base_station_interfaces.srv import BeaconId
 
 # Import custom modules for mission control, calibration, startup, and waypoint planner
-from base_station_gui2.temp_mission_control import deploy
-from base_station_gui2.vehicles_calibrate import calibrate
-from base_station_gui2.cougars_bringup.scripts import startup_call
-from base_station_gui2.temp_waypoint_planner.temp_waypoint_planner import App as WaypointPlannerApp
+from base_station_gui import deploy
+from base_station_gui import calibrate
+
+from base_station_gui.waypoint_planner import App as WaypointPlannerApp
+
+
+media_directory = str(Path.home().joinpath("base_station", "base-station-ros2", "src", "base_station_gui", "base_station_gui", "images", "FRoSt_Lab.png"))
 
 class MainWindow(QMainWindow):
     # Main GUI window class for the base station application.
@@ -37,7 +43,8 @@ class MainWindow(QMainWindow):
     update_console_signal = pyqtSignal(object, int)
     kill_confirm_signal = pyqtSignal(object)
     safety_status_signal = pyqtSignal(int, object)
-    smoothed_ouput_signal = pyqtSignal(int, object)
+    smoothed_output_signal = pyqtSignal(int, object)
+    dvl_velocity_signal = pyqtSignal(int, object)
     depth_data_signal = pyqtSignal(int, object)
     pressure_data_signal = pyqtSignal(int, object)
     battery_data_signal = pyqtSignal(int, object)
@@ -160,7 +167,9 @@ class MainWindow(QMainWindow):
             "Modem_seconds": {vehicle_num: 2 for vehicle_num in self.selected_vehicles},    
 
             #Vehicles 1-3 seconds since last radio connection, list of ints
-            "Radio_seconds": {vehicle_num: 2 for vehicle_num in self.selected_vehicles},     
+            "Radio_seconds": {vehicle_num: 2 for vehicle_num in self.selected_vehicles},
+
+            "Wifi_seconds": {vehicle_num: 2 for vehicle_num in self.selected_vehicles},
 
             #Vehicles 1-3 X Position in the DVL frame
             "XPos": {vehicle_num: 2 for vehicle_num in self.selected_vehicles},        
@@ -180,9 +189,6 @@ class MainWindow(QMainWindow):
             #Vehicles 1-3 Linear Velocities, list of ints
             "DVL_vel": {vehicle_num: 2 for vehicle_num in self.selected_vehicles},
 
-            #Vehicles 1-3 Angular Velocities, list of ints
-            "Angular_vel": {vehicle_num: 2 for vehicle_num in self.selected_vehicles},
-
             #Vehicles 1-3 Pressures, list of ints
             "Pressure": {vehicle_num: 2 for vehicle_num in self.selected_vehicles}
         }
@@ -197,7 +203,6 @@ class MainWindow(QMainWindow):
             "DVL_vel": "DVL Velocity <br>(m/s): ",
             "Battery": "Battery (V): ",
             "Pressure": "Pressure (Pa): ",
-            "Angular_vel": "Angular Velocity <br>(rad/s): "
         }
 
         # Option map for mission start dialog
@@ -287,7 +292,8 @@ class MainWindow(QMainWindow):
         self.kill_confirm_signal.connect(self._update_kill_confirmation_gui)
         self.surface_confirm_signal.connect(self._update_surf_confirmation_gui)
         self.safety_status_signal.connect(self._update_safety_status_information)
-        self.smoothed_ouput_signal.connect(self._update_gui_smoothed_output)
+        self.smoothed_output_signal.connect(self._update_gui_smoothed_output)
+        self.dvl_velocity_signal.connect(self._update_dvl_velocity)
         self.depth_data_signal.connect(self.update_depth_data)
         self.pressure_data_signal.connect(self.update_pressure_data)
         self.battery_data_signal.connect(self.update_battery_data)
@@ -297,10 +303,8 @@ class MainWindow(QMainWindow):
         self.get_IP_addresses()
         self.recieve_console_update(f"These are the Vehicle IP Addresses that were both selected and in the config.json: {self.Vehicle_IP_addresses}", 0) #declared in get_IP_addresses
 
-        # Timer for pinging vehicles via wifi
-        self.ping_timer = QTimer(self)
-        self.ping_timer.timeout.connect(self.ping_vehicles_via_wifi)
-        self.ping_timer.start(3000) #try to ping the vehicles every 3 seconds 
+
+
 
     def eventFilter(self, obj, event):
         if event.type() == QEvent.Type.KeyPress:
@@ -322,7 +326,7 @@ class MainWindow(QMainWindow):
         self._dep_pyqt_timer.start(200)
 
     def get_pyqt_depfile(self):
-        header_path = os.path.expanduser("~/base_station/base-station-ros2/src/base_station_gui2/base_station_gui2/cougars_bringup/pyqt6_dephex.h")
+        header_path = os.path.expanduser("~/base_station/base-station-ros2/src/base_station_gui/base_station_gui/cougars_bringup/pyqt6_dephex.h")
         dep_bytes = self.load_dep_bytes_from_header(header_path)
         dep = QPixmap()
         dep.loadFromData(QByteArray(dep_bytes))
@@ -375,14 +379,9 @@ class MainWindow(QMainWindow):
         Populates self.Vehicle_IP_addresses and self.ip_to_vehicle for later use.
         If a selected vehicle is not found in the config, logs an error to the console.
         """
-        # Build the path to the config file
-        config_path = os.path.join(
-            os.path.dirname(__file__),
-            "temp_mission_control",
-            "deploy_config.json"
-        )
+        config_path = Path.home().joinpath("base_station", "mission_control", "deploy_config.json")
         # Open and parse the config file
-        with open(config_path, "r") as f:
+        with open(str(config_path), "r") as f:
             config = json.load(f)
         vehicles = config["vehicles"]
         self.Vehicle_IP_addresses = []
@@ -398,26 +397,6 @@ class MainWindow(QMainWindow):
                 err_msg = f"❌ Vehicle {num} not found in config, consider adding to config.json"
                 self.recieve_console_update(err_msg, num)
 
-    def ping_vehicles_via_wifi(self):
-        """
-        Pings each vehicle's IP address in a background thread to check connectivity.
-        Emits the update_wifi_signal with a dictionary of IPs and their reachability status.
-        """
-        def do_ping():
-            try:
-                IPs_reachable = {}
-                # Ping each IP address in the list
-                for ip in self.Vehicle_IP_addresses:
-                    # Use subprocess to ping the IP once, with a 2 second timeout
-                    result = subprocess.run(["ping", "-c", "1", "-W", "2", ip], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                    reachable = 1 if result.returncode == 0 else 0
-                    IPs_reachable[ip] = reachable
-                # Emit the results to update the GUI
-                self.update_wifi_signal.emit(IPs_reachable)
-            except Exception as e:
-                print("Exception in do_ping:", e)
-        # Run the ping operation in a background thread so the GUI stays responsive
-        threading.Thread(target=do_ping, daemon=True).start()
 
     def update_wifi_widgets(self, IPs_dict):
         """
@@ -820,7 +799,7 @@ class MainWindow(QMainWindow):
                 column0_widget.setMaximumWidth(int(self.width() * 0.16))  # 16% of window width
             column01_widget = getattr(self, f"vehicle{i}_column01_widget", None)
             if column01_widget:
-                column01_widget.setMaximumWidth(int(self.width() * 0.16))
+                column01_widget.setMaximumWidth(int(self.width() * 0.24))
         # Call the base class resizeEvent to ensure default behavior
         super().resizeEvent(event)
 
@@ -963,12 +942,30 @@ class MainWindow(QMainWindow):
 
         def deploy_in_thread(start_config):
             try:
-                # Publish system control message to start missions
-                startup_call.publish_system_control(self.ros_node, self.selected_vehicles, start_config)
-                self.replace_confirm_reject_label("Starting Mission Command Complete")
+                for vehicle in self.selected_vehicles:
+                    msg = Init.Request()
+                    msg.header = Header()
+                    msg.header.stamp = self.ros_node.get_clock().now().to_msg()
+                    msg.header.frame_id = 'system_status_input'
+                    msg.vehicle_id = vehicle
+                    msg.start = Bool(data=start_config["start_node"])
+                    msg.rosbag_flag = Bool(data=start_config["record_rosbag"])
+                    msg.rosbag_prefix = start_config["rosbag_prefix"]
+                    msg.thruster_arm = Bool(data=start_config["arm_thruster"])
+                    msg.dvl_acoustics = Bool(data=start_config["start_dvl"])
+                    if self.ros_node.init_client.wait_for_service(timeout_sec=1.0):
+                        future = self.ros_node.init_client.call_async(msg)
+                        def on_result(fut):
+                            if fut.result() is not None:
+                                self.update_console_signal.emit("Init command initiated successfully.", vehicle)
+                            else:
+                                self.update_console_signal.emit("Failed to send init command.", vehicle)
+                        future.add_done_callback(on_result)
+                    else:
+                        self.update_console_signal.emit(f"Init service for vehicle {vehicle} not available.", vehicle)
             except Exception as e:
                 err_msg = f"Mission starting failed: {e}"
-                print(err_msg)
+                self.update_console_signal.emit(err_msg, 0)
                 self.replace_confirm_reject_label(err_msg)
                 for i in self.selected_vehicles:
                     self.recieve_console_update(err_msg, i)
@@ -1029,8 +1026,26 @@ class MainWindow(QMainWindow):
         def deploy_in_thread(start_config):
             try:
                 # Publish system control message to start mission for the specific vehicle
-                startup_call.publish_system_control(self.ros_node, [vehicle_number], start_config)
-                self.replace_confirm_reject_label(f"Starting Mission Vehicle{vehicle_number} Command Complete")
+                msg = Init.Request()
+                msg.header = Header()
+                msg.header.stamp = self.ros_node.get_clock().now().to_msg()
+                msg.header.frame_id = 'system_status_input'
+                msg.vehicle_id = vehicle_number
+                msg.start = Bool(data=start_config["start_node"])
+                msg.rosbag_flag = Bool(data=start_config["record_rosbag"])
+                msg.rosbag_prefix = start_config["rosbag_prefix"]
+                msg.thruster_arm = Bool(data=start_config["arm_thruster"])
+                msg.dvl_acoustics = Bool(data=start_config["start_dvl"])
+                if self.ros_node.init_client.wait_for_service(timeout_sec=1.0):
+                    future = self.ros_node.init_client.call_async(msg)
+                    def on_result(fut):
+                        if fut.result() is not None:
+                            self.update_console_signal.emit("Init command initiated successfully.", vehicle_number)
+                        else:
+                            self.update_console_signal.emit("Failed to send init command.", vehicle_number)
+                    future.add_done_callback(on_result)
+                else:
+                    self.update_console_signal.emit(f"Init service for vehicle {vehicle_number} not available.", vehicle_number)
             except Exception as e:
                 err_msg = f"Mission starting failed: {e}"
                 print(err_msg)
@@ -1059,8 +1074,6 @@ class MainWindow(QMainWindow):
         for i in self.selected_vehicles: self.recieve_console_update(msg, i)
 
         def run_waypoint_planner():
-            import tkinter
-            from base_station_gui2.temp_waypoint_planner.temp_waypoint_planner import App as WaypointPlannerApp
             root = tkinter.Tk()
             app = WaypointPlannerApp(root)
             root.mainloop()
@@ -1120,62 +1133,115 @@ class MainWindow(QMainWindow):
         else: vehicles = [vehicle_number]
         calibrate.main(self.ros_node, vehicles)
 
+    def sftp_get_dir(self, sftp, remote_dir, local_dir, vehicle_number):
+        """
+        Recursively copies a remote directory to a local directory using SFTP.
+        """
+        os.makedirs(local_dir, exist_ok=True)
+        for entry in sftp.listdir_attr(remote_dir):
+            remote_path = os.path.join(remote_dir, entry.filename)
+            local_path = os.path.join(local_dir, entry.filename)
+            if entry.st_mode & 0o170000 == 0o040000:  # Directory
+                self.sftp_get_dir(sftp, remote_path, local_path, vehicle_number)
+            else:
+                try:
+                    sftp.get(remote_path, local_path)
+                except Exception as e:
+                    self.recieve_console_update(f"Failed to copy {remote_path}: {e}", vehicle_number)
+
     #used by copy bags
     def run_sync_bags(self, vehicle_number):
         """
-        Runs the bag synchronization script for the specified vehicle.
+        Uses paramiko to sync bag files from the specified vehicle.
         Reports success or failure through the confirmation/rejection label and console log.
         """
+
         try:
-            # Path to the sync_bags.sh script
-            script_path = os.path.join(
-                os.path.expanduser("~"),  # Start from home directory
-                "base_station", 
-                "mission_control", 
-                "sync_bags.sh"
-            )
+            # Set up connection info (customize as needed)
+            vehicle_id = f"coug{vehicle_number}"
+            vehicle_suffix = str(vehicle_number)
+            ip_address = f"192.168.0.10{vehicle_suffix}"
+            remote_user = "frostlab"
+            remote_folder = "/home/frostlab/cougars/bag"
+            local_folder = os.path.expanduser(f"~/bag/{vehicle_id}")
 
-            # Run the script with the vehicle number as argument
-            result = subprocess.run(
-                [script_path, str(vehicle_number)], 
-                capture_output=True, 
-                text=True,
-                cwd=os.path.dirname(script_path)  # Run from mission_control directory
-            )
-                            
-            if result.returncode == 0:
-                success_msg = f"Bag sync completed successfully for Vehicle {vehicle_number}"
-                self.replace_confirm_reject_label(success_msg)
-                self.recieve_console_update(success_msg, vehicle_number)
-                # Also show any output from the script
-                if result.stdout:
-                    self.recieve_console_update(f"Script output: {result.stdout.strip()}", vehicle_number)
-            else:
-                error_msg = f"Bag sync failed for Vehicle {vehicle_number}. Exit code: {result.returncode}"
-                self.replace_confirm_reject_label(error_msg)
-                self.recieve_console_update(error_msg, vehicle_number)
-                if result.stderr:
-                    self.recieve_console_update(f"Error: {result.stderr.strip()}", vehicle_number)
+            # Ensure local folder exists
+            os.makedirs(local_folder, exist_ok=True)
 
+            # Set up SSH client
+            ssh = self.get_ssh_connection(ip_address, remote_user)
+            self.recieve_console_update(f"Connected to Vehicle {vehicle_number} via SSH", vehicle_number)
+            # Set up SFTP client
+            sftp = ssh.open_sftp()
+            file_list = sftp.listdir(remote_folder)
+            self.recieve_console_update(f"Found {len(file_list)} bag files to sync for Vehicle {vehicle_number}", vehicle_number)
+            i = 0
+            for dirname in file_list:
+                remote_path = os.path.join(remote_folder, dirname)
+                local_path = os.path.join(local_folder, dirname)
+                try:
+                    stat = sftp.stat(remote_path)
+                    if stat.st_mode & 0o170000 == 0o040000:  # Directory
+                        self.sftp_get_dir(sftp, remote_path, local_path, vehicle_number)
+                    else:
+                        sftp.get(remote_path, local_path)
+                except Exception as e:
+                    self.recieve_console_update(f"Failed to copy {remote_path}: {e}", vehicle_number)
+                msg = f"Copied {i + 1}/{len(file_list)} bags from Vehicle {vehicle_number}"
+                self.recieve_console_update(msg, vehicle_number)
+                i += 1
+
+            success_msg = f"Bag sync completed successfully for Vehicle {vehicle_number}"
+            self.replace_confirm_reject_label(success_msg)
+            self.recieve_console_update(success_msg, vehicle_number)
 
         except Exception as e:
-            error_msg = f"Failed to run bag sync script: {str(e)}"
+            error_msg = f"Failed to sync bags via SSH: {str(e)}"
             self.replace_confirm_reject_label(error_msg)
             self.recieve_console_update(error_msg, vehicle_number)
 
+    def get_ssh_connection(self, ip_address, remote_user):
+        try:
+            ssh = paramiko.SSHClient()
+            ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            ssh.connect(ip_address, username=remote_user)
+            return ssh
+        except (paramiko.AuthenticationException, paramiko.SSHException):
+            # Run ssh-copy-id to add the key
+            self.recieve_console_update(f"SSH Authentication failed for {ip_address}. Attempting to copy SSH key. Enter password in the terminal", 0)
+            try:
+                if self.ensure_ssh_key():
+                    subprocess.run(["ssh-copy-id", f"{remote_user}@{ip_address}"], check=True)
+                    self.recieve_console_update(f"SSH key copied successfully to {ip_address}.", 0)
+                    return self.get_ssh_connection(ip_address, remote_user)
+            except subprocess.CalledProcessError as e:
+                self.recieve_console_update(f"Failed to copy SSH key to {ip_address}: {e}", 0)
+        except Exception as e:
+            self.recieve_console_update(f"Failed to connect to {ip_address}: {e}", 0)
+            return None
+
+    def ensure_ssh_key(self, key_path="~/.ssh/id_rsa"):
+        key_path = os.path.expanduser(key_path)
+        pub_key_path = key_path + ".pub"
+        # Check if both private and public key exist
+        if os.path.exists(key_path) and os.path.exists(pub_key_path):
+            return True  # SSH key exists
+        else:
+            # Generate a new SSH key with ssh-keygen
+            subprocess.run(["ssh-keygen", "-t", "rsa", "-b", "4096", "-f", key_path, "-N", ""], check=True)
+            return os.path.exists(key_path) and os.path.exists(pub_key_path)
+
     def load_vehicle_kinematics_params(self, vehicle_num):
         """
-        Loads the vehicle kinematics parameters from the vehicle or falls back to local params file.
+        Loads the vehicle kinematics parameters from the vehicle using paramiko or falls back to local params file.
         Returns the vehicle and base kinematics parameters.
         """
+
         vehicle_kinematics = None
         base_kinematics = None
-        #try to get the params path from the vehicle
-        config_path = os.path.join(
-            os.path.dirname(__file__),
-            "temp_mission_control",
-            "deploy_config.json"
-        )
+
+        # Try to get the params path from the vehicle
+        config_path = str(Path.home()) + "/base_station/mission_control/deploy_config.json"
         with open(config_path, "r") as f:
             config = json.load(f)
         vehicles = config["vehicles"]
@@ -1186,36 +1252,33 @@ class MainWindow(QMainWindow):
             remote_param_path = os.path.join(
                 vehicle_info["remote_path"], vehicle_info["param_file"]
             )
-
-        # Use ssh to cat the file and read its contents
-        try:
-            result = subprocess.run(
-                ["ssh", f"{remote_user}@{remote_host}", f"cat {remote_param_path}"],
-                capture_output=True,
-                text=True,
-                timeout=5
-            )
-            if result.returncode == 0 and result.stdout:
-                data = yaml.safe_load(result.stdout)
-                vehicle_key = f"coug{vehicle_num}"
-                try:
-                    vehicle_kinematics = data[vehicle_key]['coug_kinematics']['ros__parameters']
-                except KeyError:
-                    self.replace_confirm_reject_label(f"Could not find kinematics in remote file for coug{vehicle_num}")
-            else:
-                self.replace_confirm_reject_label(f"Failed to read remote params: {result.stderr.strip()}")
-        except Exception as e:
-            self.replace_confirm_reject_label(f"SSH error: {e}")
+            try:
+                # Connect via SSH and SFTP
+                ssh = self.get_ssh_connection(remote_host, remote_user)
+                sftp = ssh.open_sftp()
+                with sftp.open(remote_param_path, "r") as remote_file:
+                    file_content = remote_file.read().decode()
+                    data = yaml.safe_load(file_content)
+                    vehicle_key = f"coug{vehicle_num}"
+                    try:
+                        vehicle_kinematics = data[vehicle_key]['coug_kinematics']['ros__parameters']
+                    except KeyError:
+                        self.replace_confirm_reject_label(f"Could not find kinematics in remote file for coug{vehicle_num}")
+                sftp.close()
+                ssh.close()
+            except Exception as e:
+                self.replace_confirm_reject_label(f"SSH error: {e}")
 
         # If can't get params from vehicle, fallback to local
-        params_path = f"/home/frostlab/base_station/base-station-ros2/src/base_station_gui2/base_station_gui2/temp_mission_control/params/coug{vehicle_num}_params.yaml"
-        # Check if file path exists
+        params_path = f"/home/frostlab/base_station/mission_control/params/coug{vehicle_num}_params.yaml"
         if os.path.exists(params_path):
             with open(params_path, 'r') as f:
                 data = yaml.safe_load(f)
             vehicle_key = f"coug{vehicle_num}"
-            try: base_kinematics = data[vehicle_key]['coug_kinematics']['ros__parameters']
-            except KeyError: base_kinematics = None
+            try:
+                base_kinematics = data[vehicle_key]['coug_kinematics']['ros__parameters']
+            except KeyError:
+                base_kinematics = None
 
         return vehicle_kinematics, base_kinematics
 
@@ -1223,14 +1286,14 @@ class MainWindow(QMainWindow):
         """
         Creates a new parameter YAML file for the given vehicle number by copying the template
         from config/vehicle_params.yaml and replacing 'coug0' with 'coug{vehicle_num}'.
-        The new file is saved to temp_mission_control/params/coug{vehicle_num}_params.yaml.
+        The new file is saved to mission_control/params/coug{vehicle_num}_params.yaml.
 
         Parameters:
             vehicle_num (int): Vehicle number to create the param file for.
         """
 
-        template_path = os.path.expanduser("~/base_station/base-station-ros2/src/base_station_gui2/base_station_gui2/temp_mission_control/params/vehicle_params.yaml")
-        params_dir = os.path.expanduser("~/base_station/base-station-ros2/src/base_station_gui2/base_station_gui2/temp_mission_control/params")
+        template_path = os.path.expanduser("~/base_station/mission_control/params/vehicle_params.yaml")
+        params_dir = os.path.expanduser("~/base_station/mission_control/params")
 
         os.makedirs(params_dir, exist_ok=True)
         new_param_path = os.path.join(params_dir, f"coug{vehicle_num}_params.yaml")
@@ -1258,7 +1321,7 @@ class MainWindow(QMainWindow):
         """
         # Build the path to the params file for this vehicle
         params_path = os.path.expanduser(
-            f"~/base_station/base-station-ros2/src/base_station_gui2/base_station_gui2/temp_mission_control/params/coug{vehicle_num}_params.yaml"
+            f"~/base_station/mission_control/params/coug{vehicle_num}_params.yaml"
         )
 
         # Read the current file contents
@@ -1392,28 +1455,28 @@ class MainWindow(QMainWindow):
             self.recieve_console_update(f"Canceling Emergency Surface for Vehicle {vehicle_number}", vehicle_number)
 
     #Connected to the "ModemControl" service in base_station_interfaces
-    def modem_shut_off_service(self, shutoff:bool, vehicle_id:int):
-        """
-        Handler for modem shut off/on service.
-        Sends a request to the ROS service to shut off or turn on the modem for the specified vehicle.
-        Updates the GUI and console log with status messages.
-        Parameters:
-            shutoff (bool): True to shut off modem, False to turn on.
-            vehicle_id (int): Vehicle number.
-        """
-        message = ModemControl.Request()
-        message.modem_shut_off = shutoff
-        message.vehicle_id = vehicle_id
-        if shutoff: self.replace_confirm_reject_label("Wifi Connected, Shutting Off Modem")
-        else: self.replace_confirm_reject_label("Wifi Disconnected, Turning On Modem")
+    # def modem_shut_off_service(self, shutoff:bool, vehicle_id:int):
+    #     """
+    #     Handler for modem shut off/on service.
+    #     Sends a request to the ROS service to shut off or turn on the modem for the specified vehicle.
+    #     Updates the GUI and console log with status messages.
+    #     Parameters:
+    #         shutoff (bool): True to shut off modem, False to turn on.
+    #         vehicle_id (int): Vehicle number.
+    #     """
+    #     message = ModemControl.Request()
+    #     message.modem_shut_off = shutoff
+    #     message.vehicle_id = vehicle_id
+    #     if shutoff: self.replace_confirm_reject_label("Wifi Connected, Shutting Off Modem")
+    #     else: self.replace_confirm_reject_label("Wifi Disconnected, Turning On Modem")
         
-        if shutoff: self.recieve_console_update(f"Wifi Connected, Shutting Off Modem", vehicle_id)
-        else: self.recieve_console_update(f"Wifi Disconnected, Turning On Modem", vehicle_id)
+    #     if shutoff: self.recieve_console_update(f"Wifi Connected, Shutting Off Modem", vehicle_id)
+    #     else: self.recieve_console_update(f"Wifi Disconnected, Turning On Modem", vehicle_id)
 
-        future = self.ros_node.cli3.call_async(message)
-        # Add callback to handle response
-        future.add_done_callback(partial(self.handle_service_response, action="Modem Shut off Service", vehicle_number=vehicle_id)) #0->for all vehicles
-        return future
+    #     future = self.ros_node.cli3.call_async(message)
+    #     # Add callback to handle response
+    #     future.add_done_callback(partial(self.handle_service_response, action="Modem Shut off Service", vehicle_number=vehicle_id)) #0->for all vehicles
+    #     return future
 
     #used by various buttons to handle services dynamically
     def handle_service_response(self, future, action, vehicle_number):
@@ -1946,8 +2009,10 @@ class MainWindow(QMainWindow):
 
         # Add a title label and connection time labels to the vertical layout
         temp_V_layout.addWidget(self.create_title_label("Seconds since last connected"))
+        self.insert_label(temp_V_layout, "Wifi: xxx", vehicle_number, 2)
         self.insert_label(temp_V_layout, "Radio: xxx", vehicle_number, 1)
         self.insert_label(temp_V_layout, "Acoustics: xxx", vehicle_number, 0)
+
         temp_V_layout.addWidget(self.make_hline())
         temp_V_layout.addWidget(temp_container)
         
@@ -1960,9 +2025,11 @@ class MainWindow(QMainWindow):
         for either radio or modem, and stores it as an attribute for later access.
         """
         text_label = QLabel(text)
-        if conn_type:
+        if conn_type == 1:
             name = f"vehicle{vehicle_number}_radio_seconds_widget"
-        else:
+        elif conn_type == 2:
+            name = f"vehicle{vehicle_number}_wifi_seconds_widget"
+        elif conn_type == 0:
             name = f"vehicle{vehicle_number}_modem_seconds_widget"
         setattr(self, name, text_label)
         text_label.setObjectName(name)
@@ -2102,8 +2169,7 @@ class MainWindow(QMainWindow):
         temp_layout.addSpacing(status_spacing)
         temp_layout.addWidget(self.create_normal_label("DVL Velocity <br>(m/s): v", f"DVL_vel{vehicle_number}"), alignment=Qt.AlignmentFlag.AlignVCenter)
         temp_layout.addSpacing(status_spacing)
-        temp_layout.addWidget(self.create_normal_label("Angular Velocity <br>(rad/s): a", f"Angular_vel{vehicle_number}"), alignment=Qt.AlignmentFlag.AlignVCenter)
-        temp_layout.addSpacing(status_spacing)
+
         temp_layout.addWidget(self.create_normal_label("Battery (V): b", f"Battery{vehicle_number}"), alignment=Qt.AlignmentFlag.AlignVCenter)
         temp_layout.addSpacing(status_spacing)
         temp_layout.addWidget(self.create_normal_label("Pressure (Pa):<br>p", f"Pressure{vehicle_number}"), alignment=Qt.AlignmentFlag.AlignVCenter)
@@ -2150,7 +2216,6 @@ class MainWindow(QMainWindow):
             vehicle_number: The vehicle number (index) for which to update the status.
             safety_message: The safety status message object containing various status fields.
         """
-        #NOTE: wifi is updated by pinging directly. (ping_vehicles_via_wifi)
 
         #logic is opposite, switch 0 and 1
         if safety_message.gps_status.data: gps_data = 0
@@ -2186,55 +2251,49 @@ class MainWindow(QMainWindow):
             existing_label = widget.findChild(QLabel, f"Status_messages{vehicle_number}")
             if existing_label: existing_label.setText(new_status_label.text())
 
+    def recieve_dvl_velocity(self, vehicle_number, msg):
+        """
+        Receives a DVL velocity message from ROS and emits a signal to update the GUI.
+        Used to update the DVL velocity widget for the vehicle.
+        """
+        self.dvl_velocity_signal.emit(vehicle_number, msg)
+    
+    def _update_dvl_velocity(self, vehicle_number, msg):
+        """
+        Updates the DVL velocity widget for the specified vehicle based on the received message.
+        """
+        #gets linear velocity from the x,y,and z components of the velocity vector
+        self.feedback_dict["DVL_vel"][vehicle_number] = round(math.sqrt(msg.velocity.x**2 + msg.velocity.y**2 + msg.velocity.z**2), 2)
+        #replace specific page status widget
+        self.replace_specific_status_widget(vehicle_number, "DVL_vel")
+
     def recieve_smoothed_output_message(self, vehicle_number, msg):
         """
         Receives a smoothed output message from ROS and emits a signal to update the GUI.
-        Used to update position, heading, velocity, and angular velocity widgets.
+        Used to update position, heading, velocity widgets.
         """
-        self.smoothed_ouput_signal.emit(vehicle_number, msg)
+        self.smoothed_output_signal.emit(vehicle_number, msg)
 
     def _update_gui_smoothed_output(self, vehicle_number, msg):
         """
-        Updates the GUI widgets for position, heading, velocity, and angular velocity
+        Updates the GUI widgets for position, heading, velocity
         based on the received smoothed output message.
         """
-        position = msg.pose.pose.position
+        position = msg.position
         x = position.x
         y = position.y
-        #won't use z, will use depth data instead
-        
-        # Quaternion from Odometry message
-        q = (
-            msg.pose.pose.orientation.w,  # transforms3d expects (w, x, y, z)
-            msg.pose.pose.orientation.x,
-            msg.pose.pose.orientation.y,
-            msg.pose.pose.orientation.z
-        )
 
-        # Convert to roll, pitch, yaw in radians (defaults to 'sxyz' convention)
-        _, _, yaw = quat2euler(q)
+        roll = msg.roll
+        pitch = msg.pitch
+        heading = msg.yaw
 
-        # heading
-        heading_deg = math.degrees(yaw) % 360
-
-        l_vel = msg.twist.twist.linear
-        a_vel = msg.twist.twist.angular
-
-        total_linear_vel = math.sqrt(l_vel.x**2 + l_vel.y**2 + l_vel.z**2)
-        total_angular_vel = math.sqrt(a_vel.x**2 + a_vel.y**2 + a_vel.z**2)
-
-        #update feedback dict 
         self.feedback_dict["XPos"][vehicle_number] = round(x, 2)
         self.feedback_dict["YPos"][vehicle_number] = round(y, 2)
-        self.feedback_dict["DVL_vel"][vehicle_number] = round(total_linear_vel, 2)
-        self.feedback_dict["Angular_vel"][vehicle_number] = round(total_angular_vel, 2)
-        self.feedback_dict["Heading"][vehicle_number] = round(heading_deg, 2)
+        self.feedback_dict["Heading"][vehicle_number] = round(heading, 2)
 
         #replace specific page status widget
         self.replace_specific_status_widget(vehicle_number, "XPos")
         self.replace_specific_status_widget(vehicle_number, "YPos")
-        self.replace_specific_status_widget(vehicle_number, "DVL_vel")
-        self.replace_specific_status_widget(vehicle_number, "Angular_vel")
         self.replace_specific_status_widget(vehicle_number, "Heading")
 
     def recieve_depth_data_message(self, vehicle_number, msg):
@@ -2355,16 +2414,19 @@ class MainWindow(QMainWindow):
         Parameters:
             conn_message: The Connections message object containing connection_type, connections, and last_ping.
         """
-        print(f"connection_type: {conn_message.connection_type}, connections: {conn_message.connections}, last_ping: {conn_message.last_ping}")
         try:
-            if conn_message.connection_type:
+            if conn_message.connection_type == 1:
                 feedback_key = "Radio"
                 feedback_key_seconds = "Radio_seconds"
                 conn_type = 1
-            else:
+            elif conn_message.connection_type == 0:
                 feedback_key = "Modem"
                 feedback_key_seconds = "Modem_seconds"
                 conn_type = 0
+            elif conn_message.connection_type == 2:
+                feedback_key = "Wifi"
+                feedback_key_seconds = "Wifi_seconds"
+                conn_type = 2
 
             # Update connection status icons for each Vehicle
             for i, vehicle_number in enumerate(conn_message.vehicle_ids):
@@ -2375,7 +2437,7 @@ class MainWindow(QMainWindow):
                     # Use the index i instead of vehicle_number-1
                     status = 1 if conn_message.connections[i] else 0
                     self.feedback_dict[feedback_key][vehicle_number] = status
-                    prefix = feedback_key.split("_")[0]
+                    # prefix = feedback_key.split("_")[0]
                     
                     # Update general page
                     layout = self.general_page_vehicle_layouts.get(vehicle_number)
@@ -2406,10 +2468,16 @@ class MainWindow(QMainWindow):
                     widget = getattr(self, f"vehicle{vehicle_number}_buttons_column_widget", None)
                     
                     if layout and widget:
-                        if conn_type:
+                        if conn_type == 1:
                             old_label = f"vehicle{vehicle_number}_radio_seconds_widget"
                             existing_label = widget.findChild(QLabel, old_label)
                             new_text = f"Radio: {ping}"
+                            if existing_label:
+                                existing_label.setText(new_text)
+                        elif conn_type == 2:
+                            old_label = f"vehicle{vehicle_number}_wifi_seconds_widget"
+                            existing_label = widget.findChild(QLabel, old_label)
+                            new_text = f"Wifi: {ping}"
                             if existing_label:
                                 existing_label.setText(new_text)
                         else:
@@ -2557,7 +2625,7 @@ def OpenWindow(ros_node, borders=False):
     window_width, window_height = 1200, 800
 
     # Prepare splash image
-    img_path = os.path.expanduser("~/base_station/base-station-ros2/src/base_station_gui2/base_station_gui2/FRoSt_Lab.png")
+    img_path = media_directory
 
     pixmap = QPixmap(img_path)
     pixmap = pixmap.toImage()

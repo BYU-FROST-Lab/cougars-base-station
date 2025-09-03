@@ -1,0 +1,26 @@
+# Startup message
+
+# header
+std_msgs/Header header
+
+# Target vehicle vehicle_id
+uint8 vehicle_id
+
+# Start or stop the node: True = start, False = Stop
+std_msgs/Bool start
+
+# record a rosbag
+std_msgs/Bool rosbag_flag
+
+# Prefix for rosbag
+string rosbag_prefix
+
+# Arm the thruster
+std_msgs/Bool thruster_arm
+
+# DVL acoustics
+std_msgs/Bool dvl_acoustics
+
+---
+bool success
+

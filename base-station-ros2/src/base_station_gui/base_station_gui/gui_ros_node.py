@@ -1,4 +1,4 @@
-import base_station_gui2.tabbed_window
+import base_station_gui.base_station_gui
 
 from PyQt6.QtWidgets import QApplication
 from PyQt6.QtCore import QTimer
@@ -22,9 +22,10 @@ from nav_msgs.msg import Path #used to publish the map viz path
 from sensor_msgs.msg import NavSatFix, FluidPressure, BatteryState #NavSatFix used to publish the origin
 from geometry_msgs.msg import PoseStamped, PoseWithCovariance, PoseWithCovarianceStamped
 
-from base_station_interfaces.srv import BeaconId, ModemControl
+from base_station_interfaces.srv import BeaconId, Init
 from base_station_interfaces.msg import Connections, ConsoleLog
 from frost_interfaces.msg import SystemStatus, SystemControl, UCommand
+from dvl_msgs.msg import DVLDR, DVL
 
 class GuiNode(Node):
     """
@@ -45,14 +46,23 @@ class GuiNode(Node):
             )
             setattr(self, f'safety_status_subscription{coug_number}', sub)
 
-            # Subscribe to smoothed output messages for each vehicle
+            # Subscribe to dvl/position messages for each vehicle
             sub = self.create_subscription(
-                Odometry,
-                f'coug{coug_number}/smoothed_output',
+                DVLDR,
+                f'coug{coug_number}/dvl/position',
                 lambda msg, n=coug_number: window.recieve_smoothed_output_message(n, msg),
                 10
             )
             setattr(self, f'smoothed_ouput_subscription{coug_number}', sub)
+
+            # Subscribe to smoothed output messages for each vehicle
+            sub = self.create_subscription(
+                DVL,
+                f'coug{coug_number}/dvl/data',
+                lambda msg, n=coug_number: window.recieve_dvl_velocity(n, msg),
+                10
+            )
+            setattr(self, f'dvl_vel_subscription{coug_number}', sub)
 
             # Subscribe to depth data messages for each vehicle
             sub = self.create_subscription(
@@ -120,6 +130,12 @@ class GuiNode(Node):
             )
             setattr(self, f'coug{coug_number}_kinematics_client', client)
 
+
+        self.init_client = self.create_client(
+            Init,
+            f'init_service'
+        )
+
         # Subscription for emergency kill confirmation messages
         self.kill_subscription = self.create_subscription(
             Bool,
@@ -159,7 +175,7 @@ class GuiNode(Node):
         # Service clients for emergency kill, surface, and modem shut off services
         self.cli = self.create_client(BeaconId, 'e_kill_service')
         self.cli2 = self.create_client(BeaconId, 'e_surface_service')
-        self.cli3 = self.create_client(ModemControl, 'modem_shut_off_service')
+        # self.cli3 = self.create_client(ModemControl, 'modem_shut_off_service')
 
     def publish_console_log(self, msg_text, msg_num):
         """
@@ -252,7 +268,7 @@ def main():
     rclpy.init()
 
     # Create the Qt application and main window (window will be set later)
-    app, result, selected_cougs = base_station_gui2.tabbed_window.OpenWindow(None, borders=False)
+    app, result, selected_cougs = base_station_gui.base_station_gui.OpenWindow(None, borders=False)
 
     def after_window_ready():
         """

@@ -1,4 +1,0 @@
-bool modem_shut_off
-int32 vehicle_id
----
-bool success
