@@ -45,8 +45,6 @@ def sftp_file(file_path, remote_user, remote_host, remote_path, remote_filename,
         sftp = ssh.open_sftp()
         remote_full_path = os.path.join(remote_path, remote_filename)
         
-        sftp = ssh.open_sftp()
-        remote_full_path = os.path.join(remote_path, remote_filename)
         # Try to delete the remote file if it exists
         try:
             sftp.remove(remote_full_path)
