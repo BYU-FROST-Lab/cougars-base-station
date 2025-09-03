@@ -342,7 +342,7 @@ class RFBridge(Node):
             total_chunks = (len(file_data) + CHUNK_SIZE - 1) // CHUNK_SIZE
             file_size = len(file_data)
 
-            self.print_to_gui_publisher.publish(ConsoleLog(message=f"Sending file {file_path} ({file_size} bytes) in {total_chunks} chunks to vehicle {target_vehicle_id}", vehicle_number=self.vehicle_id))
+            self.print_to_gui_publisher.publish(ConsoleLog(message=f"Sending file {file_path} ({file_size} bytes) in {total_chunks} chunks to vehicle {target_vehicle_id}", vehicle_number=target_vehicle_id))
 
             # Send file start message
             start_msg = {
