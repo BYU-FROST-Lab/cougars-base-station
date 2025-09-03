@@ -133,6 +133,8 @@ public:
                     ros_namespace + "/dvl/position", 10);
                 dvl_vel_publishers_[vehicle_id] = this->create_publisher<dvl_msgs::msg::DVL>(
                     ros_namespace + "/dvl/data", 10);
+                imu_publishers_[vehicle_id] = this->create_publisher<sensor_msgs::msg::Imu>(
+                    ros_namespace + "/modem_imu", 10);
                 battery_publishers_[vehicle_id] = this->create_publisher<sensor_msgs::msg::BatteryState>(
                     ros_namespace + "/battery/data", 10);
                 depth_publishers_[vehicle_id] = this->create_publisher<geometry_msgs::msg::PoseWithCovarianceStamped>(
@@ -402,7 +404,8 @@ public:
             // Publish the status to the appropriate topic
             frost_interfaces::msg::SystemStatus safety_status = msg->safety_status;
             dvl_msgs::msg::DVLDR dvl_pos = msg->dvl_pos;
-            dvl_msgs::msg::DVL dvl_vel;
+            dvl_msgs::msg::DVL dvl_vel = msg->dvl_vel;
+            sensor_msgs::msg::Imu imu_data = msg->imu_data;
             sensor_msgs::msg::BatteryState battery_state = msg->battery_state;
             geometry_msgs::msg::PoseWithCovarianceStamped depth_status = msg->depth_data;
             sensor_msgs::msg::FluidPressure pressure_status = msg->pressure;
@@ -410,6 +413,7 @@ public:
             safety_status_publishers_[vehicle_id]->publish(safety_status);
             dvl_publishers_[vehicle_id]->publish(dvl_pos);
             dvl_vel_publishers_[vehicle_id]->publish(dvl_vel);
+            imu_publishers_[vehicle_id]->publish(imu_data);
             battery_publishers_[vehicle_id]->publish(battery_state);
             depth_publishers_[vehicle_id]->publish(depth_status);
             pressure_publishers_[vehicle_id]->publish(pressure_status);
@@ -445,6 +449,7 @@ private:
     std::unordered_map<int64_t, rclcpp::Publisher<frost_interfaces::msg::SystemStatus>::SharedPtr> safety_status_publishers_;
     std::unordered_map<int64_t, rclcpp::Publisher<dvl_msgs::msg::DVLDR>::SharedPtr> dvl_publishers_;
     std::unordered_map<int64_t, rclcpp::Publisher<dvl_msgs::msg::DVL>::SharedPtr> dvl_vel_publishers_;
+    std::unordered_map<int64_t, rclcpp::Publisher<sensor_msgs::msg::Imu>::SharedPtr> imu_publishers_;
     std::unordered_map<int64_t, rclcpp::Publisher<sensor_msgs::msg::BatteryState>::SharedPtr> battery_publishers_;
     std::unordered_map<int64_t, rclcpp::Publisher<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr> depth_publishers_;
     std::unordered_map<int64_t, rclcpp::Publisher<sensor_msgs::msg::FluidPressure>::SharedPtr> pressure_publishers_;
