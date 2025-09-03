@@ -2305,7 +2305,6 @@ class MainWindow(QMainWindow):
         Extracts yaw from the quaternion orientation and updates the heading in feedback_dict.
         Coordinate system: East = 0°, counterclockwise positive
         """
-        self.recieve_console_update("IMU Data Received", vehicle_number)
         # Extract quaternion components
         q_x = msg.orientation.x
         q_y = msg.orientation.y
