@@ -22,7 +22,7 @@ from nav_msgs.msg import Path #used to publish the map viz path
 from sensor_msgs.msg import NavSatFix, FluidPressure, BatteryState #NavSatFix used to publish the origin
 from geometry_msgs.msg import PoseStamped, PoseWithCovariance, PoseWithCovarianceStamped
 
-from base_station_interfaces.srv import BeaconId, Init
+from base_station_interfaces.srv import BeaconId, Init, LoadMission
 from base_station_interfaces.msg import Connections, ConsoleLog
 from frost_interfaces.msg import SystemStatus, SystemControl, UCommand
 from dvl_msgs.msg import DVLDR, DVL
@@ -134,6 +134,11 @@ class GuiNode(Node):
         self.init_client = self.create_client(
             Init,
             f'init_service'
+        )
+
+        self.load_mission_client = self.create_client(
+            LoadMission,
+            f'load_mission_service'
         )
 
         # Subscription for emergency kill confirmation messages

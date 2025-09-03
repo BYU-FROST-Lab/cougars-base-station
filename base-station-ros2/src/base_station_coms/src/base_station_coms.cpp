@@ -4,6 +4,7 @@
 #include "seatrac_interfaces/msg/modem_rec.hpp"
 #include "seatrac_interfaces/msg/modem_send.hpp"
 #include "base_station_interfaces/srv/beacon_id.hpp"
+#include "base_station_interfaces/srv/load_mission.hpp"
 #include "base_station_interfaces/msg/status.hpp"
 #include "base_station_interfaces/msg/connections.hpp"
 #include "frost_interfaces/msg/system_status.hpp"
@@ -88,6 +89,14 @@ public:
             "radio_init"
         );
 
+        wifi_load_mission_client_ = this->create_client<base_station_interfaces::srv::LoadMission>(
+            "wifi_load_mission"
+        );
+
+        radio_load_mission_client_ = this->create_client<base_station_interfaces::srv::LoadMission>(
+            "radio_load_mission"
+        );
+
         // service for sending e_kill message. Decides whether to send over radio or modem
         emergency_kill_service_ = this->create_service<base_station_interfaces::srv::BeaconId>(
             "e_kill_service",
@@ -103,6 +112,12 @@ public:
         init_service_ = this->create_service<base_station_interfaces::srv::Init>(
             "init_service",
             std::bind(&ComsNode::init_callback, this, _1, _2)
+        );
+
+
+        load_mission_service_ = this->create_service<base_station_interfaces::srv::LoadMission>(
+            "load_mission_service",
+            std::bind(&ComsNode::load_mission_callback, this, _1, _2)
         );
 
         // subscriber to the status topic published by the modem and radio nodes
@@ -394,6 +409,43 @@ public:
         }
     }
 
+    void load_mission_callback(const std::shared_ptr<base_station_interfaces::srv::LoadMission::Request> request,
+                               std::shared_ptr<base_station_interfaces::srv::LoadMission::Response> response) {
+        int64_t vehicle_id = request->vehicle_id;
+
+        if (std::find(vehicles_in_mission_.begin(), vehicles_in_mission_.end(), vehicle_id) != vehicles_in_mission_.end()) {
+            // Load the mission for the specified vehicle
+            RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Loading mission for Coug %i", vehicle_id);
+            if (wifi_connection[vehicle_id]) {
+                wifi_load_mission_client_->async_send_request(request,
+                    [this, vehicle_id](rclcpp::Client<base_station_interfaces::srv::LoadMission>::SharedFuture future) {
+                        auto response = future.get();
+                        if (response->success)
+                            RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Load mission command sent to Coug %i through wifi", vehicle_id);
+                        else
+                            RCLCPP_WARN(rclcpp::get_logger("rclcpp"), "Load mission command sent to Coug %i through wifi failed", vehicle_id);
+                    });
+                response->success = true;
+            } else if (radio_connection[vehicle_id]) {
+                radio_load_mission_client_->async_send_request(request,
+                    [this, vehicle_id](rclcpp::Client<base_station_interfaces::srv::LoadMission>::SharedFuture future) {
+                        auto response = future.get();
+                        if (response->success)
+                            RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Load mission command sent to Coug %i through radio", vehicle_id);
+                        else
+                            RCLCPP_WARN(rclcpp::get_logger("rclcpp"), "Load mission command sent to Coug %i through radio failed", vehicle_id);
+                    });
+                response->success = true;
+            } else {
+                RCLCPP_WARN(rclcpp::get_logger("rclcpp"), "Cannot load mission command. No connection to Coug %i", vehicle_id);
+                response->success = false;
+            }
+        } else {
+            RCLCPP_WARN(rclcpp::get_logger("rclcpp"), "Cannot load mission. There is no Vehicle with ID %i", vehicle_id);
+            response->success = false;
+        }
+    }
+
     // Callback for the status subscriber, publishes the status of a specific vehicle in mission
     // If the vehicle is in the mission, it publishes the status to the appropriate topics
     void publish_status_callback(const std::shared_ptr<base_station_interfaces::msg::Status> msg) {
@@ -436,10 +488,15 @@ private:
     rclcpp::Client<base_station_interfaces::srv::Init>::SharedPtr wifi_init_client_;
     rclcpp::Client<base_station_interfaces::srv::Init>::SharedPtr modem_init_client_;
     rclcpp::Client<base_station_interfaces::srv::Init>::SharedPtr radio_init_client_;
+    rclcpp::Client<base_station_interfaces::srv::LoadMission>::SharedPtr wifi_load_mission_client_;
+    rclcpp::Client<base_station_interfaces::srv::LoadMission>::SharedPtr radio_load_mission_client_;
+
 
     rclcpp::Service<base_station_interfaces::srv::BeaconId>::SharedPtr emergency_kill_service_;
     rclcpp::Service<base_station_interfaces::srv::BeaconId>::SharedPtr emergency_surface_service_;
     rclcpp::Service<base_station_interfaces::srv::Init>::SharedPtr init_service_;
+    rclcpp::Service<base_station_interfaces::srv::LoadMission>::SharedPtr load_mission_service_;
+
 
     rclcpp::Subscription<base_station_interfaces::msg::Status>::SharedPtr status_subscriber_;
     std::unordered_map<int64_t, rclcpp::Publisher<frost_interfaces::msg::SystemStatus>::SharedPtr> safety_status_publishers_;

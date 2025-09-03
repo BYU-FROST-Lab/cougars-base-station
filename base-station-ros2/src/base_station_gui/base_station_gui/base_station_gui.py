@@ -6,10 +6,10 @@ import yaml, json
 import base64, math, functools
 from functools import partial
 import multiprocessing, threading, paramiko
-from base_station_interfaces.srv import Init
+from base_station_interfaces.srv import Init, LoadMission
 import tkinter
 import rclpy
-from std_msgs.msg import Header, Bool
+from std_msgs.msg import Header, Bool, String
 
 # PyQt6 imports for GUI components
 from PyQt6.QtWidgets import (QScrollArea, QApplication, QMainWindow, 
@@ -845,91 +845,23 @@ class MainWindow(QMainWindow):
         publishes origin and waypoint path data, and calls the deploy function in a background thread.
         Updates the confirmation/rejection label and console log with status messages.
         """
-        self.replace_confirm_reject_label("Loading the missions...")
-        for i in self.selected_vehicles: self.recieve_console_update("Loading the missions...", i)
-
-        def deploy_in_thread(selected_files):
-            try:
-                origins = []
-                spec_paths_dict = {}
-
-                for idx, vehicle_number in enumerate(self.selected_vehicles):
-                    file = selected_files[idx]
-                    spec_paths_list = []
-
-                    # Load the YAML mission file
-                    with open(file, 'r') as f:
-                        mission_data = yaml.safe_load(f)
-
-                    # Get the origin latitude and longitude
-                    origin_lla = mission_data.get('origin_lla')
-                    if not origin_lla:
-                        err_msg = f"Warning: ⚠️ File {file} missing 'origin_lla' section."
-                        self.recieve_console_update(err_msg, vehicle_number)
-                        self.replace_confirm_reject_label(err_msg)
-                    else:
-                        origin_lat = origin_lla.get('latitude')
-                        origin_long = origin_lla.get('longitude')
-                        if origin_lat is None or origin_long is None:
-                            err_msg = f"Warning: ⚠️ File {file} missing latitude or longitude in 'origin_lla'."
-                            self.recieve_console_update(err_msg, vehicle_number)
-                            self.replace_confirm_reject_label(err_msg)
-                        else:
-                            origins.append((origin_lat, origin_long))
-
-                    waypoints = mission_data.get('waypoints', [])
-                    if not waypoints:
-                        err_msg = f"Warning: ⚠️ File {file} doesn't have waypoints."
-                        self.recieve_console_update(err_msg, vehicle_number)
-                        self.replace_confirm_reject_label(err_msg)
-                    else:
-                        for wp in waypoints:
-                            x = wp['position_enu']['x']
-                            y = wp['position_enu']['y']
-                            spec_paths_list.append((x, y))
-                        spec_paths_dict[vehicle_number] = spec_paths_list
-
-                # Check if all origins are the same before publishing
-                if origins: 
-                    first_origin = origins[0]
-                    if not all(origin == first_origin for origin in origins):
-                        # raise an exception if it is not the same
-                        err_msg = f"Warning: ⚠️ Not all mission files have the same origin (latitude, longitude). Not publishing map viz origin data."
-                        for i in self.selected_vehicles: self.recieve_console_update(err_msg, i)
-                        self.replace_confirm_reject_label(err_msg)
-                    else:
-                        # publish origin message
-                        self.ros_node.publish_origin((origin_lat, origin_long))
-
-                # Publish waypoint paths for each vehicle
-                if spec_paths_dict:
-                    for num, path_msg in spec_paths_dict.items():
-                        self.ros_node.publish_path(path_msg, num)
-                else:
-                    err_msg = f"Warning: ⚠️ No paths found in files. Not publishing map viz path data."
-                    for i in self.selected_vehicles: self.recieve_console_update(err_msg, i)
-                    self.replace_confirm_reject_label(err_msg)
-                
-                # Call deploy function to send missions to vehicles
-                deploy.main(self.ros_node, self.selected_vehicles, selected_files)
-                self.replace_confirm_reject_label("Loading Mission Command Complete")
-
-            except Exception as e:
-                err_msg = f"Mission loading failed: {e}"
-                print(err_msg)
-                self.replace_confirm_reject_label(err_msg)
-                for i in self.selected_vehicles: self.recieve_console_update(err_msg, i)
-
         # Open dialog for selecting mission files
         dlg = LoadMissionsDialog(parent=self, background_color=self.background_color, text_color=self.text_color, pop_up_window_style=self.pop_up_window_style, selected_vehicles=self.selected_vehicles)
-        if dlg.exec():
-            start_config = dlg.get_states()
-            selected_files = list(start_config['selected_files'].values())
-            threading.Thread(target=deploy_in_thread, args=(selected_files,), daemon=True).start()
-        else:
-            err_msg = "Mission Loading command was cancelled."
-            for i in self.selected_vehicles: self.recieve_console_update(err_msg, i)
-            self.replace_confirm_reject_label(err_msg)
+        selected_files = list(start_config['selected_files'].values())
+        i=0
+        for vehicle in self.selected_vehicles:
+            if dlg.exec():
+                start_config = dlg.get_states()
+                msg = LoadMission.Request()
+                msg.vehicle_id = vehicle
+                msg.mission_path = selected_files[i]
+                self.ros_node.load_mission_client.call_async(msg)
+                i+=1
+
+            else:
+                err_msg = "Mission Loading command was cancelled."
+                for i in self.selected_vehicles: self.recieve_console_update(err_msg, i)
+                self.replace_confirm_reject_label(err_msg)
 
     def start_missions_button(self):
         """
@@ -981,39 +913,39 @@ class MainWindow(QMainWindow):
             for i in self.selected_vehicles: self.recieve_console_update(err_msg, i)
             self.replace_confirm_reject_label(err_msg)
 
-    def spec_load_missions_button(self, vehicle_number):
-        """
-        Handler for the 'Load Mission' button on a specific Vehicle tab.
-        Opens a dialog for selecting a mission file for the vehicle, loads and parses the file,
-        and calls the deploy function in a background thread.
-        Updates the confirmation/rejection label and console log with status messages.
-        """
-        msg = f"Loading Vehicle{vehicle_number} mission..."
-        self.replace_confirm_reject_label(msg)
-        self.recieve_console_update(msg, vehicle_number)
+        def spec_load_missions_button(self, vehicle_number):
+            """
+            Handler for the 'Load Mission' button on a specific Vehicle tab.
+            Opens a dialog for selecting a mission file for the vehicle, loads and parses the file,
+            and calls the deploy function in a background thread.
+            Updates the confirmation/rejection label and console log with status messages.
+            """
+            msg = f"Loading Vehicle{vehicle_number} mission..."
+            self.replace_confirm_reject_label(msg)
+            self.recieve_console_update(msg, vehicle_number)
 
-        def deploy_in_thread(selected_file):
-            try:
-                # Call deploy function for the specific vehicle
-                deploy.main(self.ros_node, [vehicle_number], [selected_file])
-                self.replace_confirm_reject_label(f"Loading Vehicle{vehicle_number} Mission Command Complete")
-            except Exception as e:
-                err_msg = f"Mission loading for vehicle{vehicle_number} failed: {e}"
-                print(err_msg)
+            msg = f"Loading Vehicle{vehicle_number} mission..."
+            self.replace_confirm_reject_label(msg)
+            self.recieve_console_update(msg, vehicle_number)
+
+            dlg = LoadMissionsDialog(parent=self, background_color=self.background_color, text_color=self.text_color, pop_up_window_style=self.pop_up_window_style, selected_vehicles=[vehicle_number])
+            if dlg.exec():
+                start_config = dlg.get_states()
+                msg = LoadMission.Request()
+                msg.vehicle_id = vehicle_number
+                # Get the actual file path from the dict values
+                file_path = list(start_config["selected_files"].values())[0]
+                self.ros_node.get_logger().info(f"Loading mission file: {file_path}")
+                # Create String message for mission_path
+                msg.mission_path = String()
+                msg.mission_path.data = file_path
+                self.ros_node.load_mission_client.call_async(msg)
+
+            else:
+                err_msg = "Mission Loading command was cancelled."
+                for i in self.selected_vehicles: self.recieve_console_update(err_msg, i)
                 self.replace_confirm_reject_label(err_msg)
-                self.recieve_console_update(err_msg, vehicle_number)
-
-        # Open dialog for selecting mission file
-        dlg = LoadMissionsDialog(parent=self, vehicle=vehicle_number, background_color=self.background_color, text_color=self.text_color, pop_up_window_style=self.pop_up_window_style)
-        if dlg.exec():
-            start_config = dlg.get_states()
-            print(f"config files chosen: {start_config}")
-            threading.Thread(target=deploy_in_thread, args=(start_config['selected_file'],), daemon=True).start()
-        else:
-            err_msg = "Mission Loading command was cancelled."
-            self.recieve_console_update(err_msg, vehicle_number)
-            self.replace_confirm_reject_label(err_msg)
-
+                
     def spec_start_missions_button(self, vehicle_number):
         """
         Handler for the 'Start Mission' button on a specific Vehicle tab.

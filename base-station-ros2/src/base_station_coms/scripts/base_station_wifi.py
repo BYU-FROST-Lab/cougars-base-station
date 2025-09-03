@@ -6,12 +6,14 @@ import subprocess
 from base_station_interfaces.msg import Connections, ConsoleLog
 from base_station_interfaces.srv import BeaconId
 from frost_interfaces.msg import SystemControl
-from base_station_interfaces.srv import Init
+from base_station_interfaces.srv import Init, LoadMission
 from std_msgs.msg import Header
 from std_srvs.srv import SetBool
 import json
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from base_station_gui import deploy
+
 
 class Base_Station_Wifi(Node):
     def __init__(self):
@@ -26,6 +28,9 @@ class Base_Station_Wifi(Node):
         self.e_kill_service = self.create_service(BeaconId, 'wifi_e_kill', self.send_e_kill_callback)
 
         self.init_service = self.create_service(Init, 'wifi_init', self.init_callback)
+
+        self.load_mission_service = self.create_service(LoadMission, 'wifi_load_mission', self.load_mission_callback)
+
 
         self.console_log = self.create_publisher(ConsoleLog, 'console_log', 10)
 
@@ -124,6 +129,23 @@ class Base_Station_Wifi(Node):
             self.get_logger().error(f"Error publishing SystemControl message: {e}")
             response.success = False
             return response
+        
+    def load_mission_callback(self, request, response):
+        # Handle the load mission request
+        self.get_logger().info(f"Loading mission for vehicle {request.vehicle_id}")
+
+        try:
+            # Call deploy function to send missions to vehicles
+            deploy.main(self, [request.vehicle_id], [request.mission_path.data])
+            self.console_log.publish(ConsoleLog(message="Loading Mission Command Complete", vehicle_number=request.vehicle_id))
+            response.success = True
+        except Exception as e:
+            err_msg = f"Mission loading failed: {e}"
+            print(err_msg)
+            self.console_log.publish(ConsoleLog(message=err_msg, vehicle_number=request.vehicle_id))
+            response.success = False
+
+        return response
 
     def get_IP_addresses(self):
         """Load IP addresses from config file"""
