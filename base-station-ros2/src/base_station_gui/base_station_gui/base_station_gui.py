@@ -847,11 +847,11 @@ class MainWindow(QMainWindow):
         """
         # Open dialog for selecting mission files
         dlg = LoadMissionsDialog(parent=self, background_color=self.background_color, text_color=self.text_color, pop_up_window_style=self.pop_up_window_style, selected_vehicles=self.selected_vehicles)
-        selected_files = list(start_config['selected_files'].values())
         i=0
         for vehicle in self.selected_vehicles:
             if dlg.exec():
                 start_config = dlg.get_states()
+                selected_files = list(start_config['selected_files'].values())
                 msg = LoadMission.Request()
                 msg.vehicle_id = vehicle
                 msg.mission_path = selected_files[i]
