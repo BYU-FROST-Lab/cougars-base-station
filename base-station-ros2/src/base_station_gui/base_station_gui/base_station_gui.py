@@ -913,38 +913,38 @@ class MainWindow(QMainWindow):
             for i in self.selected_vehicles: self.recieve_console_update(err_msg, i)
             self.replace_confirm_reject_label(err_msg)
 
-        def spec_load_missions_button(self, vehicle_number):
-            """
-            Handler for the 'Load Mission' button on a specific Vehicle tab.
-            Opens a dialog for selecting a mission file for the vehicle, loads and parses the file,
-            and calls the deploy function in a background thread.
-            Updates the confirmation/rejection label and console log with status messages.
-            """
-            msg = f"Loading Vehicle{vehicle_number} mission..."
-            self.replace_confirm_reject_label(msg)
-            self.recieve_console_update(msg, vehicle_number)
+    def spec_load_missions_button(self, vehicle_number):
+        """
+        Handler for the 'Load Mission' button on a specific Vehicle tab.
+        Opens a dialog for selecting a mission file for the vehicle, loads and parses the file,
+        and calls the deploy function in a background thread.
+        Updates the confirmation/rejection label and console log with status messages.
+        """
+        msg = f"Loading Vehicle{vehicle_number} mission..."
+        self.replace_confirm_reject_label(msg)
+        self.recieve_console_update(msg, vehicle_number)
 
-            msg = f"Loading Vehicle{vehicle_number} mission..."
-            self.replace_confirm_reject_label(msg)
-            self.recieve_console_update(msg, vehicle_number)
+        msg = f"Loading Vehicle{vehicle_number} mission..."
+        self.replace_confirm_reject_label(msg)
+        self.recieve_console_update(msg, vehicle_number)
 
-            dlg = LoadMissionsDialog(parent=self, background_color=self.background_color, text_color=self.text_color, pop_up_window_style=self.pop_up_window_style, selected_vehicles=[vehicle_number])
-            if dlg.exec():
-                start_config = dlg.get_states()
-                msg = LoadMission.Request()
-                msg.vehicle_id = vehicle_number
-                # Get the actual file path from the dict values
-                file_path = list(start_config["selected_files"].values())[0]
-                self.ros_node.get_logger().info(f"Loading mission file: {file_path}")
-                # Create String message for mission_path
-                msg.mission_path = String()
-                msg.mission_path.data = file_path
-                self.ros_node.load_mission_client.call_async(msg)
+        dlg = LoadMissionsDialog(parent=self, background_color=self.background_color, text_color=self.text_color, pop_up_window_style=self.pop_up_window_style, selected_vehicles=[vehicle_number])
+        if dlg.exec():
+            start_config = dlg.get_states()
+            msg = LoadMission.Request()
+            msg.vehicle_id = vehicle_number
+            # Get the actual file path from the dict values
+            file_path = list(start_config["selected_files"].values())[0]
+            self.ros_node.get_logger().info(f"Loading mission file: {file_path}")
+            # Create String message for mission_path
+            msg.mission_path = String()
+            msg.mission_path.data = file_path
+            self.ros_node.load_mission_client.call_async(msg)
 
-            else:
-                err_msg = "Mission Loading command was cancelled."
-                for i in self.selected_vehicles: self.recieve_console_update(err_msg, i)
-                self.replace_confirm_reject_label(err_msg)
+        else:
+            err_msg = "Mission Loading command was cancelled."
+            for i in self.selected_vehicles: self.recieve_console_update(err_msg, i)
+            self.replace_confirm_reject_label(err_msg)
                 
     def spec_start_missions_button(self, vehicle_number):
         """
