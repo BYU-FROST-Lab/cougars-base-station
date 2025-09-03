@@ -394,7 +394,7 @@ class RFBridge(Node):
                     self.get_logger().error(f"Failed to send chunk {chunk_num + 1}/{total_chunks} after {max_retries} retries")
                     return False
 
-                self.print_to_gui_publisher.publish(ConsoleLog(message=f"Sent chunk {chunk_num + 1}/{total_chunks}", vehicle_number=self.vehicle_id))
+                self.print_to_gui_publisher.publish(ConsoleLog(message=f"Sent chunk {chunk_num + 1}/{total_chunks}", vehicle_number=target_vehicle_id))
 
                 # Small delay between chunks to avoid overwhelming the receiver
                 time.sleep(0.05)
