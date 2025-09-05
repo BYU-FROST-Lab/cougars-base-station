@@ -1,0 +1,18 @@
+mission_type: waypoint
+mission_name: mission_plan
+origin_lla:
+  latitude: 40.238947
+  longitude: -111.739538
+  altitude: 1365.4333
+  name: UL Provo Marina
+reference_frame_for_waypoints: ENU_at_origin_LLA
+waypoints:
+- id: 1
+  position_enu:
+    x: -283.444
+    y: 278.338
+    z: -0.012
+  depth: 5.0
+  original_map_click_lla:
+    latitude: 40.2414531
+    longitude: -111.7428683

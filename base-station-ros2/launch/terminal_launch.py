@@ -21,6 +21,7 @@ def generate_launch_description():
 
 
     param_file = os.path.join('/home/frostlab/base_station/base-station-ros2', 'base_station_params.yaml')
+    # fast_dds_config = os.path.join(os.path.expanduser('~'), 'config', 'fast_discovery_config.xml')
 
     return launch.LaunchDescription([
         launch_ros.actions.Node(
@@ -42,15 +43,21 @@ def generate_launch_description():
             parameters=[param_file]
         ),        
         launch_ros.actions.Node(
-            package='base_station_gui2',
-            executable='talker',
-            name='base_station_gui2',
+            package='base_station_gui',
+            executable='gui_node',
+            name='base_station_gui',
             output='screen'
         ),
         launch_ros.actions.Node(
             package='base_station_coms',
             executable='base_station_radio.py',
             name='base_station_radio',
+            parameters=[param_file]
+        ),
+        launch_ros.actions.Node(
+            package='base_station_coms',
+            executable='base_station_wifi.py',
+            name='base_station_wifi',
             parameters=[param_file]
         ),
     ])

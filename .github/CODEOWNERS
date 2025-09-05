@@ -15,3 +15,15 @@
 
 
 * @BradenMeyers
+cougars-base-station/base_station_radio/ @bja1701 @BenWashburn1457 
+cougars-base-station/base_station_modem/ @BenWashburn1457 @ClaytonSmith314
+cougars-base-station/dataplot/ @TristanHodgins
+cougars-base-station/mission_control/ @BenWashburn1457
+cougars-base-station/base-station-ros2/src/base_station_coms/ @bja1701 @BenWashburn1457
+cougars-base-station/base-station-ros2/src/base_station_interfaces/ @BenWashburn1457
+cougars-base-station/base-station-ros2/src/base_station_utils/ @egaskin111
+
+# TODO: I think the postprocessing, scripts folder could be dividied more individually for the files but this is fine for now
+cougars-base-station/postprocessing/ @BenWashburn1457 @ClaytonSmith314
+cougars-base-station/scripts/ @BenWashburn1457 @ClaytonSmith314
+cougars-base-station/base-station-ros2/src/base_station_gui2/ @BenWashburn1457
