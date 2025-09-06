@@ -1,5 +1,6 @@
 # !/bin/bash
 
+echo you need to fix the path in this script for sourcing the setup file
 source install/setup.sh
 
 ros2 topic pub /coug7/safety_status cougars_interfaces/msg/SystemStatus "{
