@@ -32,7 +32,7 @@ class Base_Station_Wifi(Node):
         self.init_publishers = {}
         self.thruster_clients = {}
         for vehicle in self.vehicles_in_mission:
-            self.init_publishers[vehicle] = self.create_publisher(SystemControl, f'coug{vehicle}/system_status', 10)
+            self.init_publishers[vehicle] = self.create_publisher(SystemControl, f'coug{vehicle}/system/status', 10)
             self.thruster_clients[vehicle] = self.create_client(SetBool, f'coug{vehicle}/arm_thruster')
 
         self.ping_timestamp = {}
