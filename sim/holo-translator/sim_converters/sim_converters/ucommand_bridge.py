@@ -63,7 +63,8 @@ class UCommandBridge(Node):
         fins_rad = [-1 * math.radians(angle) for angle in msg.fin[:3]]
 
         # Thruster percentage directly used
-        thruster = float(msg.thruster)
+        # TODO map thruster values from 0-100 to 0-1500 rpm which is not linear
+        thruster = float(msg.thruster) * 15 
 
         # Pack into CommandControl message
         control_msg = ControlCommand()
@@ -71,6 +72,8 @@ class UCommandBridge(Node):
         control_msg.header.stamp = self.get_clock().now().to_msg()
         control_msg.header.frame_id = self.get_parameter('holoocean_vehicle').get_parameter_value().string_value
         control_msg.cs = fins_rad + [thruster]
+
+
 
         self.holoocean_pub.publish(control_msg)
         # self.get_logger().info("Forwarded to holoocean control/command")
@@ -90,10 +93,8 @@ class UCommandBridge(Node):
         u_cmd_msg.fin = fins_deg + [0.0]  # Pad with unused value
 
         # Thruster: only publish if enabled
-        
-        # TODO map thruster values from 0-100 to 0-1500 rpm which is not linear
-        u_cmd_msg.thruster = (int(msg.cs[3]) if (self.publish_thruster and len(msg.cs) >= 4) else 0) * 15
 
+        u_cmd_msg.thruster = int(msg.cs[3]) if (self.publish_thruster and len(msg.cs) >= 4) else 0
 
         # TODO: Need to figure out how to handle when running holoocean commands
         # self.frost_pub.publish(u_cmd_msg)
