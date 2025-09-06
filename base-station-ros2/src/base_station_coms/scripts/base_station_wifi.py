@@ -5,7 +5,7 @@ from rclpy.node import Node
 import subprocess
 from base_station_interfaces.msg import Connections, ConsoleLog
 from base_station_interfaces.srv import BeaconId
-from frost_interfaces.msg import SystemControl
+from cougars_interfaces.msg import SystemControl
 from base_station_interfaces.srv import Init
 from std_msgs.msg import Header
 from std_srvs.srv import SetBool
