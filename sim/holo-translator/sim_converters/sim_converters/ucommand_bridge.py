@@ -90,7 +90,9 @@ class UCommandBridge(Node):
         u_cmd_msg.fin = fins_deg + [0.0]  # Pad with unused value
 
         # Thruster: only publish if enabled
-        u_cmd_msg.thruster = int(msg.cs[3]) if (self.publish_thruster and len(msg.cs) >= 4) else 0
+        
+        # TODO map thruster values from 0-100 to 0-1500 rpm which is not linear
+        u_cmd_msg.thruster = (int(msg.cs[3]) if (self.publish_thruster and len(msg.cs) >= 4) else 0) * 15
 
 
         # TODO: Need to figure out how to handle when running holoocean commands
