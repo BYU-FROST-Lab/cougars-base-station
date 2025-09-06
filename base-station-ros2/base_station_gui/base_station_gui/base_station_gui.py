@@ -34,7 +34,7 @@ from base_station_gui import calibrate
 from base_station_gui.waypoint_planner import App as WaypointPlannerApp
 
 
-media_directory = str(Path.home().joinpath("config", "images", "FRoSt_Lab.png"))
+media_directory = str(Path.home().joinpath("base_station", "images", "FRoSt_Lab.png"))
 
 class MainWindow(QMainWindow):
     # Main GUI window class for the base station application.
