@@ -7,7 +7,7 @@ from base_station_interfaces.msg import Connections, ConsoleLog
 from base_station_interfaces.srv import BeaconId
 from frost_interfaces.msg import SystemControl
 from base_station_interfaces.srv import Init, LoadMission
-from std_msgs.msg import Header
+from std_msgs.msg import Header, Empty
 from std_srvs.srv import SetBool
 import json
 from pathlib import Path
@@ -30,7 +30,7 @@ class Base_Station_Wifi(Node):
         self.init_service = self.create_service(Init, 'wifi_init', self.init_callback)
 
         self.load_mission_service = self.create_service(LoadMission, 'wifi_load_mission', self.load_mission_callback)
-
+        self.reload_params_publisher = self.create_publisher(Empty, 'reload_parameters', 10)
 
         self.console_log = self.create_publisher(ConsoleLog, 'console_log', 10)
 
@@ -138,6 +138,7 @@ class Base_Station_Wifi(Node):
             # Call deploy function to send missions to vehicles
             deploy.main(self, [request.vehicle_id], [request.mission_path.data])
             self.console_log.publish(ConsoleLog(message="Loading Mission Command Complete", vehicle_number=request.vehicle_id))
+            self.reload_params_publisher.publish(Empty())
             response.success = True
         except Exception as e:
             err_msg = f"Mission loading failed: {e}"
