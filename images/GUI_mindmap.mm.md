@@ -1,6 +1,6 @@
 # GUI Sources
 
-## frost_interfaces
+## cougars_interfaces
 ### msg
 
 #### UCommand (name: /coug{coug_number}/controls/command)

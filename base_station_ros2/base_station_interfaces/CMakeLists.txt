@@ -9,7 +9,7 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 find_package(std_msgs REQUIRED)
-find_package(frost_interfaces REQUIRED)
+find_package(cougars_interfaces REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(dvl_msgs REQUIRED)
@@ -22,7 +22,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
 "msg/CommandVerify.msg"
 "msg/ConsoleLog.msg"
 "srv/Init.srv"
-DEPENDENCIES std_msgs frost_interfaces sensor_msgs nav_msgs dvl_msgs
+DEPENDENCIES std_msgs cougars_interfaces sensor_msgs nav_msgs dvl_msgs
 )
 
 ament_export_dependencies(rosidl_default_runtime)

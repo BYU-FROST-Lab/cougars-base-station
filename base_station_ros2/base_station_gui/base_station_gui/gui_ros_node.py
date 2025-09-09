@@ -24,7 +24,7 @@ from geometry_msgs.msg import PoseStamped, PoseWithCovariance, PoseWithCovarianc
 
 from base_station_interfaces.srv import BeaconId, Init
 from base_station_interfaces.msg import Connections, ConsoleLog
-from frost_interfaces.msg import SystemStatus, SystemControl, UCommand
+from cougars_interfaces.msg import SystemStatus, SystemControl, UCommand
 from dvl_msgs.msg import DVLDR, DVL
 
 class GuiNode(Node):

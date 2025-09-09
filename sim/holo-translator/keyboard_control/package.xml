@@ -10,7 +10,7 @@
   <buildtool_depend>ament_cmake</buildtool_depend>
   <exec_depend>ros2launch</exec_depend>
   <exec_depend>std_msgs</exec_depend>
-  <exec_depend>frost_interfaces</exec_depend>
+  <exec_depend>cougars_interfaces</exec_depend>
   <exec_depend>holoocean_interfaces</exec_depend>
 
 

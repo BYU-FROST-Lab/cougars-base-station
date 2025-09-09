@@ -21,8 +21,8 @@
   <build_depend>seatrac_interfaces</build_depend>
   <exec_depend>seatrac_interfaces</exec_depend>
 
-  <build_depend>frost_interfaces</build_depend>
-  <exec_depend>frost_interfaces</exec_depend>
+  <build_depend>cougars_interfaces</build_depend>
+  <exec_depend>cougars_interfaces</exec_depend>
 
   <build_depend>base_station_interfaces</build_depend>
   <exec_depend>base_station_interfaces</exec_depend>

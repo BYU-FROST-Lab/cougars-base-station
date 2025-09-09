@@ -1,6 +1,6 @@
 uint8 vehicle_id
 
-frost_interfaces/SystemStatus safety_status
+cougars_interfaces/SystemStatus safety_status
 dvl_msgs/DVLDR dvl_pos
 dvl_msgs/DVL dvl_vel
 sensor_msgs/BatteryState battery_state

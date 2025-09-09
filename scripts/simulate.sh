@@ -1,8 +1,9 @@
 # !/bin/bash
 
+echo you need to fix the path in this script for sourcing the setup file
 source install/setup.sh
 
-ros2 topic pub /coug7/safety_status frost_interfaces/msg/SystemStatus "{
+ros2 topic pub /coug7/safety_status cougars_interfaces/msg/SystemStatus "{
   header: {stamp: {sec: 0, nanosec: 0}, frame_id: ''},
   depth_status: {data: 0},
   imu_published: {data: 2},
