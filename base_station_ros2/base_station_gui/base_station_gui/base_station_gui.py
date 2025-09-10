@@ -2852,11 +2852,14 @@ class LoadMissionsDialog(QDialog):
         Opens a file dialog to select a mission file for the current tab or single vehicle.
         Updates the display label with the selected file name.
         """
+        # Set default directory - you can customize this path
+        default_dir = os.path.expanduser("/home/frostlab/base_station/mission_control/missions")
+        
         if tab_name:
             file_path, _ = QFileDialog.getOpenFileName(
                 self,
                 f"Select Mission File for {tab_name}",
-                "",
+                default_dir,
                 "Mission Files (*.yaml *.yml *.json);;All Files (*)"
             )
             if file_path:
@@ -2866,7 +2869,7 @@ class LoadMissionsDialog(QDialog):
             file_path, _ = QFileDialog.getOpenFileName(
                 self,
                 "Select Mission File",
-                "",
+                default_dir,
                 "Mission Files (*.yaml *.yml *.json);;All Files (*)"
             )
             if file_path:
