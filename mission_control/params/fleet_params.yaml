@@ -21,4 +21,4 @@
     # mission_start_time: 1739302061  # Time offset to reduce bytes in timestamp
     
     # Right now only setup with manual mission - should probably change the name since there will be other types of missions
-    mission_file_path: '/home/frostlab/config/deploy_tmp/mission_states.json'
+    mission_file_path: '/home/frostlab/config/deploy_tmp/mission.yaml'

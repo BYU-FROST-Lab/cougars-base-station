@@ -4,10 +4,10 @@
 ### Checklist:
 - [ ] Code builds on laptop
 - [ ] Code runs on laptop
+- [ ] Checked the CODEOWNERS file to make sure it is still accurate
 - [ ] I have updated the documentation as needed.
 - [ ] I have performed a self-review of my code.
-- [ ] I have resolved any merge conflicts before submission.
-- [ ] Node Parameters updated (if applicable)
+- [ ] ROS parameters have been added to the param file templates
 
 ### Tests:
 - [ ] Bench Test without vehicle
