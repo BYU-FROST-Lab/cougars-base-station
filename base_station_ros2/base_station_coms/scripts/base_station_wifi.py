@@ -30,13 +30,14 @@ class Base_Station_Wifi(Node):
         self.init_service = self.create_service(Init, 'wifi_init', self.init_callback)
 
         self.load_mission_service = self.create_service(LoadMission, 'wifi_load_mission', self.load_mission_callback)
-        self.reload_params_publisher = self.create_publisher(Empty, 'reload_parameters', 10)
 
         self.console_log = self.create_publisher(ConsoleLog, 'console_log', 10)
 
         self.init_publishers = {}
         self.thruster_clients = {}
+        self.reload_params_publishers = {}
         for vehicle in self.vehicles_in_mission:
+            self.reload_params_publishers[vehicle] = self.create_publisher(Empty, f'coug{vehicle}/reload_params', 10)
             self.init_publishers[vehicle] = self.create_publisher(SystemControl, f'coug{vehicle}/system/status', 10)
             self.thruster_clients[vehicle] = self.create_client(SetBool, f'coug{vehicle}/arm_thruster')
 
