@@ -7,10 +7,12 @@
 #include "base_station_interfaces/srv/load_mission.hpp"
 #include "base_station_interfaces/msg/status.hpp"
 #include "base_station_interfaces/msg/connections.hpp"
+#include "base_station_interfaces/msg/u_command_radio.hpp"
 #include "cougars_interfaces/msg/system_status.hpp"
 #include "nav_msgs/msg/odometry.hpp"
 #include "sensor_msgs/msg/battery_state.hpp"
 #include "base_station_interfaces/srv/init.hpp"
+#include "cougars_interfaces/msg/u_command.hpp"
 
 #include "base_station_coms/coms_protocol.hpp"
 #include "base_station_coms/seatrac_enums.hpp"
@@ -132,6 +134,8 @@ public:
             std::bind(&ComsNode::listen_to_connections, this, _1)
         );
 
+        radio_key_publisher = this->create_publisher<base_station_interfaces::msg::UCommandRadio>("radio_key_command", 10);
+
         // RCLCPP_INFO(this->get_logger(), "request status: %d", request_status);
         if (request_status) {
            // timer that periodically requests status from vehicles in mission
@@ -154,8 +158,13 @@ public:
                     ros_namespace + "/depth_data", 10);
                 pressure_publishers_[vehicle_id] = this->create_publisher<sensor_msgs::msg::FluidPressure>(
                     ros_namespace + "/pressure/data", 10);
-           }
-       }
+                keyboard_controls_subscribers_[vehicle_id] = this->create_subscription<cougars_interfaces::msg::UCommand>(
+                    ros_namespace + "/controls/command", 10,
+                    [this, vehicle_id](const cougars_interfaces::msg::UCommand::SharedPtr msg) {
+                    this->keyboard_controls_callback(msg, vehicle_id);
+                    });
+            }
+        }
 
        // Send to all is always true
        modem_connection[0] = true;
@@ -446,6 +455,28 @@ public:
         }
     }
 
+    // Callback for keyboard controls topic, sends the keyboard controls to a specific vehicle in mission
+    void keyboard_controls_callback(const std::shared_ptr<cougars_interfaces::msg::UCommand> msg, int vehicle_id) {
+        if (std::find(vehicles_in_mission_.begin(), vehicles_in_mission_.end(), vehicle_id) != vehicles_in_mission_.end()) {
+            if (wifi_connection[vehicle_id]) {
+                // Send the keyboard controls through wifi
+                RCLCPP_DEBUG(rclcpp::get_logger("rclcpp"), "Sending keyboard controls to Coug %i through wifi", vehicle_id);
+            } else if (radio_connection[vehicle_id]) {
+                // Send the keyboard controls through radio
+                RCLCPP_DEBUG(rclcpp::get_logger("rclcpp"), "Sending keyboard controls to Coug %i through radio", vehicle_id);
+                auto radio_msg = base_station_interfaces::msg::UCommandRadio();
+                radio_msg.vehicle_id = vehicle_id;
+                radio_msg.ucommand = *msg;
+                radio_key_publisher->publish(radio_msg);
+            } else {
+                RCLCPP_WARN(rclcpp::get_logger("rclcpp"), "Cannot send keyboard controls to Coug %i because there is no connection", vehicle_id);
+            }
+        } else {
+            RCLCPP_WARN(rclcpp::get_logger("rclcpp"), "Cannot send keyboard controls. There is no Vehicle with ID %i", vehicle_id);
+        }
+    }
+
+
     // Callback for the status subscriber, publishes the status of a specific vehicle in mission
     // If the vehicle is in the mission, it publishes the status to the appropriate topics
     void publish_status_callback(const std::shared_ptr<base_station_interfaces::msg::Status> msg) {
@@ -505,10 +536,14 @@ private:
     std::unordered_map<int64_t, rclcpp::Publisher<sensor_msgs::msg::BatteryState>::SharedPtr> battery_publishers_;
     std::unordered_map<int64_t, rclcpp::Publisher<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr> depth_publishers_;
     std::unordered_map<int64_t, rclcpp::Publisher<sensor_msgs::msg::FluidPressure>::SharedPtr> pressure_publishers_;
+    std::unordered_map<int64_t, rclcpp::Subscription<cougars_interfaces::msg::UCommand>::SharedPtr> keyboard_controls_subscribers_;
 
     std::unordered_map<int,bool> radio_connection;
     std::unordered_map<int,bool> modem_connection;
     std::unordered_map<int,bool> wifi_connection;
+
+    rclcpp::Publisher<base_station_interfaces::msg::UCommandRadio>::SharedPtr radio_key_publisher;
+
 
     std::vector<int64_t> vehicles_in_mission_;
 

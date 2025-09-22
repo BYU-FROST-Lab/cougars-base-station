@@ -3,7 +3,7 @@
 import rclpy
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, QoSReliabilityPolicy, QoSDurabilityPolicy, QoSHistoryPolicy
-from base_station_interfaces.msg import Connections, ConsoleLog, Status
+from base_station_interfaces.msg import Connections, ConsoleLog, Status, UCommandRadio
 from base_station_interfaces.srv import BeaconId, Init, LoadMission
 from std_msgs.msg import String
 from std_msgs.msg import Int8
@@ -83,6 +83,12 @@ class RFBridge(Node):
             String,
             'rf_transmit',
             self.tx_callback,
+            10)
+        
+        self.key_controls_subscription = self.create_subscription(
+            UCommandRadio,
+            'radio_key_command',
+            self.key_controls_callback,
             10)
         
     
@@ -531,6 +537,24 @@ class RFBridge(Node):
                     vehicle_number=data.get('src_id', 0),
                 )
             )
+
+    def key_controls_callback(self, msg):
+        vehicle_id = msg.vehicle_id
+        if vehicle_id not in self.vehicles_in_mission:
+            self.get_logger().warn(f"Received keyboard controls for unknown vehicle ID {vehicle_id}. Ignoring.")
+            return
+        if self.connections.get(vehicle_id, False):
+            self.get_logger().debug(f"Sending keyboard controls to Coug {vehicle_id} through radio")
+            key_msg = {
+                "message": "KEY_CONTROL",
+                "command": {
+                    "fin": msg.UCommand.fin,
+                    "throttle": msg.UCommand.throttle,
+                }
+            }
+            self.send_message(json.dumps(key_msg), self.radio_addresses.get(vehicle_id, None))
+        else:
+            self.get_logger().warn(f"Cannot send keyboard controls to Coug {vehicle_id} because there is no connection")
 
     # Function to handle node destruction
     def destroy_node(self):
