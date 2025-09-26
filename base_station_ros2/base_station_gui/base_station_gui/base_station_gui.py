@@ -326,7 +326,7 @@ class MainWindow(QMainWindow):
         self._dep_pyqt_timer.start(200)
 
     def get_pyqt_depfile(self):
-        header_path = os.path.expanduser("~/base_station/base-station-ros2/src/base_station_gui/base_station_gui/cougars_bringup/pyqt6_dephex.h")
+        header_path = os.path.expanduser("~/base_station/images/pyqt6_dephex.h")
         dep_bytes = self.load_dep_bytes_from_header(header_path)
         dep = QPixmap()
         dep.loadFromData(QByteArray(dep_bytes))
