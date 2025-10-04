@@ -20,7 +20,7 @@ setup(
         ('share/' + package_name, ['package.xml']),
         (os.path.join('share',package_name,'launch'),glob(os.path.join('launch','*launch.[pxy][yma]*')))
     ],
-    install_requires=['setuptools', 'base_station_interfaces', 'cougars_interfaces'],
+    install_requires=['setuptools', 'base_station_interfaces', 'cougars_interfaces', 'task_interface', 'dvl_msgs'],
     zip_safe=True,
     maintainer='frostlab',
     maintainer_email='frostlab@todo.todo',

@@ -18,6 +18,8 @@
   <build_depend>cougars_interfaces</build_depend>
   <build_export_depend>cougars_interfaces</build_export_depend>
   <exec_depend>cougars_interfaces</exec_depend>
+  <build_depend>task_interface</build_depend>
+  <exec_depend>task_interface</exec_depend>
   <build_depend>dvl_msgs</build_depend>
   <exec_depend>dvl_msgs</exec_depend>
 

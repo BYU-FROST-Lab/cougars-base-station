@@ -50,6 +50,7 @@ class MainWindow(QMainWindow):
     battery_data_signal = pyqtSignal(int, object)
     surface_confirm_signal = pyqtSignal(object)
     update_wifi_signal = pyqtSignal(dict)
+    current_task_signal = pyqtSignal(int, object)  # Signal for receiving current task updates
 
     # Initializes GUI window with a ros node inside
     def __init__(self, ros_node, vehicle_list):
@@ -252,10 +253,40 @@ class MainWindow(QMainWindow):
 
             if name.lower() != "general":
                 vehicle_number = int(name.split()[-1])  # Extract vehicle number from tab name
-                # For Vehicle tabs, add specific widgets and console log
+                # For Vehicle tabs, add specific widgets and split console log/task horizontally
                 content_layout.addWidget(self.set_specific_vehicle_widgets(vehicle_number))
                 content_layout.addWidget(self.make_hline())
-                content_layout.addWidget(self.create_specific_vehicle_console_log(vehicle_number))
+                # Create horizontal layout for console log and task info panel
+                horizontal_split = QHBoxLayout()
+                # Console log
+                console_log_widget = self.create_specific_vehicle_console_log(vehicle_number)
+                horizontal_split.addWidget(console_log_widget, stretch=2)
+                # Task info panel styled to match other sections
+                task_panel = QFrame()
+                task_panel.setFrameShape(QFrame.Shape.StyledPanel)
+                task_panel.setStyleSheet(f"background-color: {self.background_color}; border: 2px solid {self.border_outline}; border-radius: 8px; padding: 10px;")
+                task_panel_layout = QVBoxLayout()
+                # Current Task (read-only)
+                current_task_label = QLabel("Current Task:")
+                current_task_label.setStyleSheet(f"color: {self.text_color}; font-size: 14px; font-weight: bold;")
+                current_task_value = QLabel("--")
+                current_task_value.setObjectName(f"task_value_{vehicle_number}")
+                current_task_value.setStyleSheet(f"color: {self.text_color}; font-size: 14px;")
+                # Task Start Time (read-only)
+                start_time_label = QLabel("Started At:")
+                start_time_label.setStyleSheet(f"color: {self.text_color}; font-size: 14px; font-weight: bold;")
+                start_time_value = QLabel("--")
+                start_time_value.setObjectName(f"task_start_time_{vehicle_number}")
+                start_time_value.setStyleSheet(f"color: {self.text_color}; font-size: 14px;")
+                # Add to panel layout
+                task_panel_layout.addWidget(current_task_label)
+                task_panel_layout.addWidget(current_task_value)
+                task_panel_layout.addSpacing(8)
+                task_panel_layout.addWidget(start_time_label)
+                task_panel_layout.addWidget(start_time_value)
+                task_panel.setLayout(task_panel_layout)
+                horizontal_split.addWidget(task_panel, stretch=1)
+                content_layout.addLayout(horizontal_split)
                 content_layout.addWidget(label, alignment=Qt.AlignmentFlag.AlignTop)
             else:
                 # For General tab, add general widgets
@@ -298,6 +329,7 @@ class MainWindow(QMainWindow):
         self.pressure_data_signal.connect(self.update_pressure_data)
         self.battery_data_signal.connect(self.update_battery_data)
         self.update_wifi_signal.connect(self.update_wifi_widgets)
+        self.current_task_signal.connect(self.update_current_task)
 
         # Get IP addresses for selected vehicles and display in console
         self.get_IP_addresses()
@@ -2370,6 +2402,59 @@ class MainWindow(QMainWindow):
         else: 
             for i in self.selected_vehicles:
                 self.recieve_console_update("Kill Command Failed", i)
+
+    def recieve_current_task(self, vehicle_number, task_message): 
+        """
+        Slot to receive a current task message from ROS and emit a signal to update the GUI.
+
+        Parameters:
+            vehicle_number: The vehicle number (index) for which to update the task.
+            task_message: The current task message object.
+        """
+        self.current_task_signal.emit(vehicle_number, task_message)
+    
+    def update_current_task(self, vehicle_number, task_message): 
+        """
+        Updates the GUI to reflect the latest current task and start time for the specified Vehicle.
+
+        Parameters:
+            vehicle_number: The vehicle number (index) for which to update the task.
+            task_message: The current task message object (Task).
+        """
+        try:
+            # Map task_type.value to human-readable string
+            task_type_map = {
+                0: "DEFAULT",
+                1: "PARK",
+                2: "NAVIGATE",
+                3: "WAYPOINT_FOLLOW",
+                4: "PREPROGRAMMED_MISSION",
+                5: "EMERGENCY_SURFACE",
+                6: "MANUAL_CONTROL"
+            }
+            task_type = getattr(task_message, 'task_type', None)
+            task_value = getattr(task_type, 'value', None) if task_type else None
+            task_str = task_type_map.get(task_value, '--')
+
+            # Get the start time
+            time_started = getattr(task_message, 'time_started', None)
+            if time_started and hasattr(time_started, 'sec') and hasattr(time_started, 'nanosec'):
+                import datetime
+                dt = datetime.datetime.fromtimestamp(time_started.sec + time_started.nanosec * 1e-9)
+                time_str = dt.strftime('%Y-%m-%d %H:%M:%S')
+            else:
+                time_str = '--'
+
+            # Update the labels in the GUI
+            task_label = self.findChild(QLabel, f"task_value_{vehicle_number}")
+            if task_label:
+                task_label.setText(task_str)
+            start_time_label = self.findChild(QLabel, f"task_start_time_{vehicle_number}")
+            if start_time_label:
+                start_time_label.setText(time_str)
+        except Exception as e:
+            print(f"Exception in update_current_task_gui for vehicle {vehicle_number}: {e}")
+            self.recieve_console_update(f"Exception in update_current_task_gui: {e}", vehicle_number)
 
     def recieve_surface_confirmation_message(self, surf_message): 
         """

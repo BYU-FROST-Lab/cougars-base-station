@@ -24,6 +24,7 @@ from geometry_msgs.msg import PoseStamped, PoseWithCovariance, PoseWithCovarianc
 
 from base_station_interfaces.srv import BeaconId, Init
 from base_station_interfaces.msg import Connections, ConsoleLog
+from task_interface.msg import Task
 from cougars_interfaces.msg import SystemStatus, SystemControl, UCommand
 from dvl_msgs.msg import DVLDR, DVL
 
@@ -130,6 +131,13 @@ class GuiNode(Node):
             )
             setattr(self, f'coug{coug_number}_kinematics_client', client)
 
+            sub = self.create_subscription(
+                Task,
+                f'coug{coug_number}/current_task',
+                lambda msg, n=coug_number: window.recieve_current_task(n, msg),
+                10
+            )
+            setattr(self, f'current_task_subscription{coug_number}', sub)
 
         self.init_client = self.create_client(
             Init,
