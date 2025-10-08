@@ -62,6 +62,7 @@ class OdomToNavSatFix(Node):
         
         :param msg: The Odometry message received from the gps_odom topic.
         '''
+
         # Convert local Cartesian coordinates to latitude/longitude
         lat, lon = self.calculate_inverse_haversine(
             self.get_parameter('origin.latitude').get_parameter_value().double_value,
@@ -85,6 +86,8 @@ class OdomToNavSatFix(Node):
         # Set the covariance values
         # Covariance from NavSatFix message used
         navsatfix= NavSatFix()
+        navsatfix.header = msg.header
+        navsatfix.header.frame_id = "gps"
         navsatfix.position_covariance[0] = msg.pose.covariance[0]  # xx
         navsatfix.position_covariance[4] = msg.pose.covariance[7]  # yy
         navsatfix.position_covariance[8] = msg.pose.covariance[14]  # zz
