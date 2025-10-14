@@ -96,8 +96,17 @@ class DVLReverse(Node):
 
 
     def DR_callback(self, msg):
-        self.integrate_DR(msg)
-        self.publish_DR(msg.header)
+        # self.integrate_DR(msg)
+        # self.publish_DR(msg.header)
+        dvldr = DVLDR()
+        dvldr.header = msg.header
+
+        dvldr.position = msg.pose.pose.position
+
+        rot = R.from_quat([
+            
+        ])
+
 
 
 
