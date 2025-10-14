@@ -96,16 +96,41 @@ class DVLReverse(Node):
 
 
     def DR_callback(self, msg):
-        # self.integrate_DR(msg)
-        # self.publish_DR(msg.header)
-        dvldr = DVLDR()
-        dvldr.header = msg.header
+        publish_msg = DVLDR()
+        publish_msg.header = msg.header
+        # msg = Odometry()
+        # publish_msg.position = msg.pose.pose.position
+        # publish_msg.pos_std = msg.   //TODO: figure out where to get this data from
+        
+        # holoocean odom/body frame: x-forward, y-left,  z-up
+        # dvl odom/body frame:       x-forward, y-right, z-down
+        # transform applied before and after odom->body
+        # conversion: (180 about x)*transform*(180 about x)
 
-        dvldr.position = msg.pose.pose.position
+        # Convert quaternion to Euler angles (is this correct?)
+        # order of the angles is z,y,x
+        # uses r the intrinsic rotation 
+        position_vector = Vector3()
+        position_vector.x = msg.pose.pose.position.x
+        position_vector.y = msg.pose.pose.position.y
+        position_vector.z = msg.pose.pose.position.z
+        publish_msg.position = position_vector
 
-        rot = R.from_quat([
-            
-        ])
+        orientation_q = msg.pose.pose.orientation
+        orientation_list = [-orientation_q.x, orientation_q.y, orientation_q.z, -orientation_q.w]
+        (roll, pitch, yaw) = tf_transformations.euler_from_quaternion(orientation_list, axes='rzyx')
+
+        publish_msg.roll = roll
+        publish_msg.pitch = pitch
+        publish_msg.yaw = yaw
+
+        self.DVLDR_publisher_.publish(publish_msg)
+
+        # self.get_logger().info('Position: "%s"' % str(publish_msg))
+        # self.get_logger().info('Roll: "%s"' % publish_msg.roll)
+        # self.get_logger().info('Pitch: "%s"' % publish_msg.pitch)
+        # self.get_logger().info('Yaw: "%s"' % publish_msg.yaw)
+
 
 
 
