@@ -32,12 +32,12 @@ class DVLReverse(Node):
             self.Vel_callback,
             10)
         
-        # # TODO fix this
-        # self.DVLdead_reckon_subscription = self.create_subscription(
-        #     PoseWithCovarianceStamped,
-        #     '/holoocean/dead_reckon',
-        #     self.DR_callback,
-        #     10)
+        # TODO fix this
+        self.DVLdead_reckon_subscription = self.create_subscription(
+            Odometry,
+            '/holoocean/'+holoocean_vehicle+'/DynamicsSensorOdom',
+            self.DR_callback,
+            10)
         
         self.dvl_range_sub = self.create_subscription(
             DVLSensorRange,
@@ -54,17 +54,17 @@ class DVLReverse(Node):
         
     # Quick and dirty integration of twists to get
     # dead reckoning for the simulation
-    def integrate_DR(self, twist):
+    def integrate_DR(self, msg):
     # get time delta
-        time = twist.header.stamp.sec + twist.header.stamp.nanosec*1e-9
+        time = msg.header.stamp.sec + msg.header.stamp.nanosec*1e-9
         if self.lasttime is None:
             self.lasttime = time
             return
         dt = time - self.lasttime
         self.lasttime = time
     # unpack twist
-        L = twist.twist.twist.angular
-        v = twist.twist.twist.linear
+        L = msg.twist.twist.angular
+        v = msg.twist.twist.linear
         omega = np.array((L.x, L.y, L.z)) # angular momentum in (rad/s)
         vel = np.array((v.x, v.y, v.z)) # velocity in (m/s)
     # translate
@@ -95,6 +95,12 @@ class DVLReverse(Node):
         self.DVLDR_publisher_.publish(dvldr)
 
 
+    def DR_callback(self, msg):
+        self.integrate_DR(msg)
+        self.publish_DR(msg.header)
+
+
+
     def altitude_callback(self, msg: DVLSensorRange):
         self.altitude = float(sum(msg.range) / len(msg.range))
     
@@ -113,9 +119,6 @@ class DVLReverse(Node):
         self.DVL_publisher_.publish(publish_msg)
         # self.get_logger().info('Velocity: "%s"' % publish_msg.velocity)
         # self.get_logger().info('Altitude: "%s"' % publish_msg.altitude)
-
-        self.integrate_DR(msg)
-        self.publish_DR(msg.header)
 
  
 def main(args=None):
