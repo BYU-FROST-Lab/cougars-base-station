@@ -2541,24 +2541,23 @@ class MainWindow(QMainWindow):
         else: print(f"label with name {prefix}{vehicle_number} does not exist")
 
 #used by ros to open a window. Needed in order to start PyQt on a different thread than ros
-def OpenWindow(ros_node, borders=False):
+def OpenWindow(ros_node, selected_vehicles, borders=False):
     """
     Launches the main GUI window for the base station application.
-    Handles splash screen display, vehicle selection dialog, and main window instantiation.
-    Returns the QApplication instance, a result dict containing the window, and the selected vehicles.
+    Handles splash screen display and main window instantiation.
+    Returns the QApplication instance and a result dict containing the window.
 
     Parameters:
         ros_node: The ROS node to pass to the MainWindow.
+        selected_vehicles (list): List of vehicle numbers to create tabs for.
         borders (bool): If True, applies a red border to all widgets for debugging layout.
 
     Steps:
         1. Create QApplication and set window size.
         2. Load and display splash image (with dark mode inversion).
         3. Center splash on the screen.
-        4. Show configuration dialog for vehicle selection.
-        5. If user cancels, exit the app.
-        6. Show splash message and build main window after a delay.
-        7. Return app, result dict, and selected vehicles.
+        4. Show splash message and build main window after a delay.
+        5. Return app and result dict.
     """
     app = QApplication(sys.argv)
     window_width, window_height = 1200, 800
@@ -2604,26 +2603,8 @@ def OpenWindow(ros_node, borders=False):
 
     app.processEvents()
 
-    # Show configuration dialog ON TOP of splash
-    options = [f"Vehicle {i}" for i in range(1, 5)] + ["select custom: "]
-    dlg = ConfigurationWindow(options, parent=splash, background_color="#0F1C37", text_color="#FFFFFF")
-    dlg.setWindowModality(Qt.WindowModality.ApplicationModal)
-    dlg.setWindowFlag(Qt.WindowType.WindowStaysOnTopHint)
-    dlg.move(
-        x + (window_width - dlg.width()) // 2,
-        y + (window_height - dlg.height()) // 2
-    )
-
-    selected_vehicles = None
-    if dlg.exec():
-        #example selected_vehicles: [4, 5, 7, 999] ##Vehicle selection can be any int
-        selected_vehicles = dlg.get_states()
-    else:
-        sys.exit(0)
-
-    # Raise the splash again in case it lost focus
-    splash.raise_()
-    splash.showMessage("Loading main window...")
+    # Display loading message on splash
+    splash.showMessage(f"Loading main window for vehicles: {selected_vehicles}...")
 
     if borders:
         app.setStyleSheet("""*{border: 1px solid red;}""")
@@ -2643,8 +2624,8 @@ def OpenWindow(ros_node, borders=False):
 
     QTimer.singleShot(500, build_main_window)
 
-    #return the app, the result, and the selected vehicle numbers
-    return app, result, selected_vehicles
+    #return the app and the result
+    return app, result
 
 class CustomSplash(QWidget):
     """
