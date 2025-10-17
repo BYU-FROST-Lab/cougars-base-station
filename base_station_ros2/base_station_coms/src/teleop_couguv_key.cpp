@@ -203,11 +203,32 @@ void TeleopCommand::keyLoop()
 
 void TeleopCommand::switchVehicle()
 {
+  // Send zeros to the current vehicle before switching
+  RCLCPP_INFO(get_logger(), "Sending zeros to vehicle %d before switching", vehicle_id_);
+  
+  // Create a zero command message for the current vehicle
+  base_station_interfaces::msg::UCommandRadio zero_command_msg;
+  zero_command_msg.ucommand.header.stamp = get_clock()->now();
+  zero_command_msg.ucommand.header.frame_id = vehicle_name_;
+  zero_command_msg.vehicle_id = vehicle_id_;
+  zero_command_msg.ucommand.fin = {0.0, 0.0, 0.0, 0.0};
+  zero_command_msg.ucommand.thruster = 0.0;
+  
+  // Publish the zero command to the current vehicle
+  command_pub_->publish(zero_command_msg);
+  
+  // Now switch to the next vehicle
   current_vehicle_index_ = (current_vehicle_index_ + 1) % vehicles_in_mission_.size();
   vehicle_id_ = vehicles_in_mission_[current_vehicle_index_];
   last_command_msg_.vehicle_id = vehicle_id_;
   
-  RCLCPP_INFO(get_logger(), "Switched to controlling vehicle %d", vehicle_id_);
+  // Reset local control values to zero for the new vehicle
+  fin1_ = 0.0;
+  fin2_ = 0.0;
+  fin3_ = 0.0;
+  thruster_value_ = 0; // Reset to default thruster value
+  
+  RCLCPP_INFO(get_logger(), "Switched to controlling vehicle %d (fins and thruster reset to defaults)", vehicle_id_);
 }
 
 void TeleopCommand::publishCommand()
