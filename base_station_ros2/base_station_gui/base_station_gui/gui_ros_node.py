@@ -177,6 +177,9 @@ class GuiNode(Node):
         # Publisher for console log messages
         self.console_publisher = self.create_publisher(ConsoleLog, 'console_log', 10)
 
+        # Publisher for key press events to teleop
+        self.keypress_publisher = self.create_publisher(String, 'gui_keypress', 10)
+
         # Service clients for emergency kill, surface, and modem shut off services
         self.cli = self.create_client(BeaconId, 'e_kill_service')
         self.cli2 = self.create_client(BeaconId, 'e_surface_service')
@@ -190,6 +193,14 @@ class GuiNode(Node):
         msg.message = msg_text
         msg.vehicle_number = msg_num
         self.console_publisher.publish(msg)
+
+    def publish_keypress(self, key_text):
+        """
+        Publishes a key press event to the 'gui_keypress' topic.
+        """
+        msg = String()
+        msg.data = key_text
+        self.keypress_publisher.publish(msg)
 
     def publish_origin(self, origin_msg):
         """

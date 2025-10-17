@@ -30,7 +30,7 @@ add_executable(base_station_modem src/base_station_modem.cpp)
 ament_target_dependencies(base_station_modem rclcpp nav_msgs sensor_msgs std_srvs std_msgs seatrac_interfaces base_station_interfaces cougars_interfaces)
 
 add_executable(teleop_couguv_key src/teleop_couguv_key.cpp)
-ament_target_dependencies(teleop_couguv_key rclcpp cougars_interfaces)
+ament_target_dependencies(teleop_couguv_key rclcpp cougars_interfaces base_station_interfaces std_msgs)
 
 install(DIRECTORY include/
 DESTINATION include/${PROJECT_NAME})

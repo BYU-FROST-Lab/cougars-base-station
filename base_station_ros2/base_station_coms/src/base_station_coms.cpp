@@ -134,7 +134,19 @@ public:
             std::bind(&ComsNode::listen_to_connections, this, _1)
         );
 
-        radio_key_publisher = this->create_publisher<base_station_interfaces::msg::UCommandRadio>("radio_key_command", 10);
+        // subscriber to the keyboard controls
+        keyboard_controls_subscriber_ = this->create_subscription<base_station_interfaces::msg::UCommandRadio>(
+            "keyboard_controls", 10,
+            std::bind(&ComsNode::keyboard_controls_callback, this, _1)
+        );
+
+        wifi_key_publisher_ = this->create_publisher<base_station_interfaces::msg::UCommandRadio>(
+            "wifi_keyboard_controls", 10
+        );
+
+        radio_key_publisher_ = this->create_publisher<base_station_interfaces::msg::UCommandRadio>(
+            "radio_key_command", 10
+        );
 
         // RCLCPP_INFO(this->get_logger(), "request status: %d", request_status);
         if (request_status) {
@@ -158,11 +170,11 @@ public:
                     ros_namespace + "/depth_data", 10);
                 pressure_publishers_[vehicle_id] = this->create_publisher<sensor_msgs::msg::FluidPressure>(
                     ros_namespace + "/pressure/data", 10);
-                keyboard_controls_subscribers_[vehicle_id] = this->create_subscription<cougars_interfaces::msg::UCommand>(
-                    ros_namespace + "/controls/command", 10,
-                    [this, vehicle_id](const cougars_interfaces::msg::UCommand::SharedPtr msg) {
-                    this->keyboard_controls_callback(msg, vehicle_id);
-                    });
+                // keyboard_controls_subscribers_[vehicle_id] = this->create_subscription<cougars_interfaces::msg::UCommand>(
+                //     ros_namespace + "/controls/command", 10,
+                //     [this, vehicle_id](const cougars_interfaces::msg::UCommand::SharedPtr msg) {
+                //     this->keyboard_controls_callback(msg, vehicle_id);
+                //     });
             }
         }
 
@@ -201,6 +213,24 @@ public:
             } else if (msg->connection_type == 2) {
                 wifi_connection[beacon_id] = msg->connections[i];
             }
+        }
+    }
+
+    // Callback for the keyboard controls topic, updates the keyboard controls for each vehicle in mission
+    void keyboard_controls_callback(const base_station_interfaces::msg::UCommandRadio::SharedPtr msg) {
+
+        // if wifi connection, send to wifi keyboard controls
+        if (wifi_connection[msg->vehicle_id]) {
+            RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Sending keyboard controls for coug %d over wifi", msg->vehicle_id);
+            wifi_key_publisher_->publish(*msg);
+            return;
+        } else if (radio_connection[msg->vehicle_id]) {
+            RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Sending keyboard controls for coug %d over radio", msg->vehicle_id);
+            radio_key_publisher_->publish(*msg);
+            return;
+        } else {    
+            RCLCPP_WARN(rclcpp::get_logger("rclcpp"), "No connection to coug %d, cannot send keyboard controls", msg->vehicle_id);
+            return;
         }
     }
     
@@ -424,15 +454,15 @@ public:
 
         if (std::find(vehicles_in_mission_.begin(), vehicles_in_mission_.end(), vehicle_id) != vehicles_in_mission_.end()) {
             // Load the mission for the specified vehicle
-            RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Loading mission for Coug %i", vehicle_id);
+            RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Loading mission for Coug %li", vehicle_id);
             if (wifi_connection[vehicle_id]) {
                 wifi_load_mission_client_->async_send_request(request,
                     [this, vehicle_id](rclcpp::Client<base_station_interfaces::srv::LoadMission>::SharedFuture future) {
                         auto response = future.get();
                         if (response->success)
-                            RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Load mission command sent to Coug %i through wifi", vehicle_id);
+                            RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Load mission command sent to Coug %li through wifi", vehicle_id);
                         else
-                            RCLCPP_WARN(rclcpp::get_logger("rclcpp"), "Load mission command sent to Coug %i through wifi failed", vehicle_id);
+                            RCLCPP_WARN(rclcpp::get_logger("rclcpp"), "Load mission command sent to Coug %li through wifi failed", vehicle_id);
                     });
                 response->success = true;
             } else if (radio_connection[vehicle_id]) {
@@ -440,39 +470,18 @@ public:
                     [this, vehicle_id](rclcpp::Client<base_station_interfaces::srv::LoadMission>::SharedFuture future) {
                         auto response = future.get();
                         if (response->success)
-                            RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Load mission command sent to Coug %i through radio", vehicle_id);
+                            RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Load mission command sent to Coug %li through radio", vehicle_id);
                         else
-                            RCLCPP_WARN(rclcpp::get_logger("rclcpp"), "Load mission command sent to Coug %i through radio failed", vehicle_id);
+                            RCLCPP_WARN(rclcpp::get_logger("rclcpp"), "Load mission command sent to Coug %li through radio failed", vehicle_id);
                     });
                 response->success = true;
             } else {
-                RCLCPP_WARN(rclcpp::get_logger("rclcpp"), "Cannot load mission command. No connection to Coug %i", vehicle_id);
+                RCLCPP_WARN(rclcpp::get_logger("rclcpp"), "Cannot load mission command. No connection to Coug %li", vehicle_id);
                 response->success = false;
             }
         } else {
-            RCLCPP_WARN(rclcpp::get_logger("rclcpp"), "Cannot load mission. There is no Vehicle with ID %i", vehicle_id);
+            RCLCPP_WARN(rclcpp::get_logger("rclcpp"), "Cannot load mission. There is no Vehicle with ID %li", vehicle_id);
             response->success = false;
-        }
-    }
-
-    // Callback for keyboard controls topic, sends the keyboard controls to a specific vehicle in mission
-    void keyboard_controls_callback(const std::shared_ptr<cougars_interfaces::msg::UCommand> msg, int vehicle_id) {
-        if (std::find(vehicles_in_mission_.begin(), vehicles_in_mission_.end(), vehicle_id) != vehicles_in_mission_.end()) {
-            if (wifi_connection[vehicle_id]) {
-                // Send the keyboard controls through wifi
-                RCLCPP_DEBUG(rclcpp::get_logger("rclcpp"), "Sending keyboard controls to Coug %i through wifi", vehicle_id);
-            } else if (radio_connection[vehicle_id]) {
-                // Send the keyboard controls through radio
-                RCLCPP_DEBUG(rclcpp::get_logger("rclcpp"), "Sending keyboard controls to Coug %i through radio", vehicle_id);
-                auto radio_msg = base_station_interfaces::msg::UCommandRadio();
-                radio_msg.vehicle_id = vehicle_id;
-                radio_msg.ucommand = *msg;
-                radio_key_publisher->publish(radio_msg);
-            } else {
-                RCLCPP_WARN(rclcpp::get_logger("rclcpp"), "Cannot send keyboard controls to Coug %i because there is no connection", vehicle_id);
-            }
-        } else {
-            RCLCPP_WARN(rclcpp::get_logger("rclcpp"), "Cannot send keyboard controls. There is no Vehicle with ID %i", vehicle_id);
         }
     }
 
@@ -530,6 +539,7 @@ private:
 
 
     rclcpp::Subscription<base_station_interfaces::msg::Status>::SharedPtr status_subscriber_;
+    rclcpp::Subscription<base_station_interfaces::msg::UCommandRadio>::SharedPtr keyboard_controls_subscriber_;
     std::unordered_map<int64_t, rclcpp::Publisher<cougars_interfaces::msg::SystemStatus>::SharedPtr> safety_status_publishers_;
     std::unordered_map<int64_t, rclcpp::Publisher<dvl_msgs::msg::DVLDR>::SharedPtr> dvl_publishers_;
     std::unordered_map<int64_t, rclcpp::Publisher<dvl_msgs::msg::DVL>::SharedPtr> dvl_vel_publishers_;
@@ -542,7 +552,8 @@ private:
     std::unordered_map<int,bool> modem_connection;
     std::unordered_map<int,bool> wifi_connection;
 
-    rclcpp::Publisher<base_station_interfaces::msg::UCommandRadio>::SharedPtr radio_key_publisher;
+    rclcpp::Publisher<base_station_interfaces::msg::UCommandRadio>::SharedPtr radio_key_publisher_;
+    rclcpp::Publisher<base_station_interfaces::msg::UCommandRadio>::SharedPtr wifi_key_publisher_;
 
 
     std::vector<int64_t> vehicles_in_mission_;

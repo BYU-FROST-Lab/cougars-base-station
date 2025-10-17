@@ -540,16 +540,17 @@ class RFBridge(Node):
 
     def key_controls_callback(self, msg):
         vehicle_id = msg.vehicle_id
+        self.get_logger().debug(f"Received keyboard controls for Coug {vehicle_id}")
         if vehicle_id not in self.vehicles_in_mission:
             self.get_logger().warn(f"Received keyboard controls for unknown vehicle ID {vehicle_id}. Ignoring.")
             return
         if self.connections.get(vehicle_id, False):
-            self.get_logger().debug(f"Sending keyboard controls to Coug {vehicle_id} through radio")
+            self.get_logger().info(f"Sending keyboard controls to Coug {vehicle_id} through radio")
             key_msg = {
                 "message": "KEY_CONTROL",
                 "command": {
-                    "fin": msg.UCommand.fin,
-                    "throttle": msg.UCommand.throttle,
+                    "fin": list(msg.ucommand.fin),
+                    "throttle": int(msg.ucommand.thruster),
                 }
             }
             self.send_message(json.dumps(key_msg), self.radio_addresses.get(vehicle_id, None))

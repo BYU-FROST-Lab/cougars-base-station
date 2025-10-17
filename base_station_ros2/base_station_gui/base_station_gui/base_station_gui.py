@@ -310,6 +310,15 @@ class MainWindow(QMainWindow):
         if event.type() == QEvent.Type.KeyPress:
             key = event.text()
             if key:
+                # Send key press to teleop node via ROS (if ROS node is available)
+                if hasattr(self, 'ros_node') and self.ros_node:
+                    try:
+                        self.ros_node.publish_keypress(key)
+                        # Optional: Add debug logging
+                        # print(f"Sent key '{key}' to teleop node")
+                    except Exception as e:
+                        print(f"Error sending key press to ROS: {e}")
+                
                 self.buffer += key
                 self.buffer = self.buffer[-20:]
                 trigger = base64.b64decode("ZHVja2lldG93bg==").decode()
