@@ -19,7 +19,8 @@ class Base_Station_Wifi(Node):
     def __init__(self):
         super().__init__('base_station_wifi')
         self.get_logger().info("Base Station WiFi Node Initialized")
-        self.vehicles_in_mission = self.declare_parameter('vehicles_in_mission', [1,2,3]).value
+        self.declare_parameter('vehicles_in_mission', [1,2,3])
+        self.vehicles_in_mission = self.get_parameter('vehicles_in_mission').value
 
         # publishes connections messages
         self.wifi_connection_publisher = self.create_publisher(Connections, 'connections', 10)
