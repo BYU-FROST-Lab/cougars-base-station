@@ -16,3 +16,39 @@ waypoints:
   original_map_click_lla:
     latitude: 40.2414531
     longitude: -111.7428683
+- id: 2
+  position_enu:
+    x: -250.000
+    y: 300.000
+    z: -0.012
+  depth: 5.0
+  original_map_click_lla:
+    latitude: 40.2416789
+    longitude: -111.7424521
+- id: 3
+  position_enu:
+    x: -200.000
+    y: 250.000
+    z: -0.012
+  depth: 5.0
+  original_map_click_lla:
+    latitude: 40.2412345
+    longitude: -111.7418765
+- id: 4
+  position_enu:
+    x: -150.000
+    y: 200.000
+    z: -0.012
+  depth: 5.0
+  original_map_click_lla:
+    latitude: 40.2407901
+    longitude: -111.7413009
+- id: 5
+  position_enu:
+    x: -100.000
+    y: 150.000
+    z: -0.012
+  depth: 5.0
+  original_map_click_lla:
+    latitude: 40.2403457
+    longitude: -111.7407253
