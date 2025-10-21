@@ -3,7 +3,7 @@
 import rclpy
 from rclpy.node import Node
 import subprocess
-from base_station_interfaces.msg import Connections, ConsoleLog, UCommandRadio
+from base_station_interfaces.msg import Connections, ConsoleLog, UCommandBase
 from base_station_interfaces.srv import BeaconId, LoadMission
 from cougars_interfaces.msg import SystemControl, UCommand
 from base_station_interfaces.srv import Init
@@ -35,14 +35,14 @@ class Base_Station_Wifi(Node):
         self.keyboard_controls_publisher = self.create_publisher(UCommand, 'keyboard_controls', 10)
 
         self.keyboard_controls_subscriber = self.create_subscription(
-            UCommandRadio,
+            UCommandBase,
             'wifi_keyboard_controls',
             self.keyboard_controls_callback,
             10
         )
 
         self.console_log = self.create_publisher(ConsoleLog, 'console_log', 10)
-
+        self.thruster_enabled = {vehicle: False for vehicle in self.vehicles_in_mission}
         self.init_publishers = {}
         self.thruster_clients = {}
         self.reload_params_publishers = {}
@@ -50,7 +50,7 @@ class Base_Station_Wifi(Node):
         for vehicle in self.vehicles_in_mission:
             self.reload_params_publishers[vehicle] = self.create_publisher(Empty, f'coug{vehicle}/reload_params', 10)
             self.init_publishers[vehicle] = self.create_publisher(SystemControl, f'coug{vehicle}/system/status', 10)
-            self.keyboard_controls_publishers[vehicle] = self.create_publisher(UCommand, f'coug{vehicle}/keyboard_controls', 10)
+            self.keyboard_controls_publishers[vehicle] = self.create_publisher(UCommand, f'coug{vehicle}/controls/command', 10)
             self.thruster_clients[vehicle] = self.create_client(SetBool, f'coug{vehicle}/arm_thruster')
 
         self.ping_timestamp = {}
@@ -87,11 +87,36 @@ class Base_Station_Wifi(Node):
 
     def keyboard_controls_callback(self, msg):
         """Callback for keyboard controls messages, republishes to the appropriate vehicle topic"""
-        self.get_logger().info(f"Received keyboard controls for vehicle {msg.vehicle_number}")
-        command_msg = UCommand()
-        command_msg.vehicle_number = msg.vehicle_number
-        command_msg.message = msg.message
-        self.keyboard_controls_publishers[msg.vehicle_number].publish(command_msg) 
+        self.get_logger().info(f"Received keyboard controls for vehicle {msg.vehicle_id}")
+
+        if msg.thruster_enabled != self.thruster_enabled[msg.vehicle_id]:
+            self.thruster_enabled[msg.vehicle_id] = msg.thruster_enabled
+            # Call arm_thruster service to update thruster state
+            thruster_client = self.thruster_clients[msg.vehicle_id]
+            service_request = SetBool.Request()
+            service_request.data = msg.thruster_enabled
+
+            if not thruster_client.wait_for_service(timeout_sec=1.0):
+                self.get_logger().error("arm_thruster service not available")
+                return
+
+            try:
+                future = thruster_client.call_async(service_request)
+                rclpy.spin_until_future_complete(self, future)
+                service_response = future.result()
+                
+                if service_response.success:
+                    state_str = "enabled" if msg.thruster_enabled else "disabled"
+                    self.get_logger().info(f"Thruster has been {state_str}.")
+                else:
+                    self.get_logger().error("Failed to change thruster state.")
+                    
+            except Exception as e:
+                self.get_logger().error(f"Error while trying to change thruster state: {str(e)}")
+                return
+
+        command_msg = msg.ucommand
+        self.keyboard_controls_publishers[msg.vehicle_id].publish(command_msg)
 
     def send_e_kill_callback(self, request, response):
         vehicle_id = request.beacon_id
@@ -231,7 +256,7 @@ class Base_Station_Wifi(Node):
                 msg = Connections()
                 msg.connection_type = 2  # WiFi connections
                 msg.vehicle_ids = self.vehicles_in_mission
-                msg.connections = [False for vehicle in self.vehicles_in_mission]
+                msg.connections = [self.connection_status[vehicle] for vehicle in self.vehicles_in_mission]
 
                 # Calculate time since last successful ping
                 current_time = self.get_clock().now()

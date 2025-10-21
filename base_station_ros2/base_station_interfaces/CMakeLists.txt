@@ -21,7 +21,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
 "msg/Connections.msg"
 "msg/CommandVerify.msg"
 "msg/ConsoleLog.msg"
-"msg/UCommandRadio.msg"
+"msg/UCommandBase.msg"
 "srv/Init.srv"
 "srv/LoadMission.srv"
 DEPENDENCIES std_msgs cougars_interfaces sensor_msgs nav_msgs dvl_msgs

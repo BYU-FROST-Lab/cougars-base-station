@@ -7,7 +7,7 @@
 #include "base_station_interfaces/srv/load_mission.hpp"
 #include "base_station_interfaces/msg/status.hpp"
 #include "base_station_interfaces/msg/connections.hpp"
-#include "base_station_interfaces/msg/u_command_radio.hpp"
+#include "base_station_interfaces/msg/u_command_base.hpp"
 #include "cougars_interfaces/msg/system_status.hpp"
 #include "nav_msgs/msg/odometry.hpp"
 #include "sensor_msgs/msg/battery_state.hpp"
@@ -135,16 +135,16 @@ public:
         );
 
         // subscriber to the keyboard controls
-        keyboard_controls_subscriber_ = this->create_subscription<base_station_interfaces::msg::UCommandRadio>(
+        keyboard_controls_subscriber_ = this->create_subscription<base_station_interfaces::msg::UCommandBase>(
             "keyboard_controls", 10,
             std::bind(&ComsNode::keyboard_controls_callback, this, _1)
         );
 
-        wifi_key_publisher_ = this->create_publisher<base_station_interfaces::msg::UCommandRadio>(
+        wifi_key_publisher_ = this->create_publisher<base_station_interfaces::msg::UCommandBase>(
             "wifi_keyboard_controls", 10
         );
 
-        radio_key_publisher_ = this->create_publisher<base_station_interfaces::msg::UCommandRadio>(
+        radio_key_publisher_ = this->create_publisher<base_station_interfaces::msg::UCommandBase>(
             "radio_key_command", 10
         );
 
@@ -217,7 +217,7 @@ public:
     }
 
     // Callback for the keyboard controls topic, updates the keyboard controls for each vehicle in mission
-    void keyboard_controls_callback(const base_station_interfaces::msg::UCommandRadio::SharedPtr msg) {
+    void keyboard_controls_callback(const base_station_interfaces::msg::UCommandBase::SharedPtr msg) {
 
         // if wifi connection, send to wifi keyboard controls
         if (wifi_connection[msg->vehicle_id]) {
@@ -539,7 +539,7 @@ private:
 
 
     rclcpp::Subscription<base_station_interfaces::msg::Status>::SharedPtr status_subscriber_;
-    rclcpp::Subscription<base_station_interfaces::msg::UCommandRadio>::SharedPtr keyboard_controls_subscriber_;
+    rclcpp::Subscription<base_station_interfaces::msg::UCommandBase>::SharedPtr keyboard_controls_subscriber_;
     std::unordered_map<int64_t, rclcpp::Publisher<cougars_interfaces::msg::SystemStatus>::SharedPtr> safety_status_publishers_;
     std::unordered_map<int64_t, rclcpp::Publisher<dvl_msgs::msg::DVLDR>::SharedPtr> dvl_publishers_;
     std::unordered_map<int64_t, rclcpp::Publisher<dvl_msgs::msg::DVL>::SharedPtr> dvl_vel_publishers_;
@@ -552,8 +552,8 @@ private:
     std::unordered_map<int,bool> modem_connection;
     std::unordered_map<int,bool> wifi_connection;
 
-    rclcpp::Publisher<base_station_interfaces::msg::UCommandRadio>::SharedPtr radio_key_publisher_;
-    rclcpp::Publisher<base_station_interfaces::msg::UCommandRadio>::SharedPtr wifi_key_publisher_;
+    rclcpp::Publisher<base_station_interfaces::msg::UCommandBase>::SharedPtr radio_key_publisher_;
+    rclcpp::Publisher<base_station_interfaces::msg::UCommandBase>::SharedPtr wifi_key_publisher_;
 
 
     std::vector<int64_t> vehicles_in_mission_;
