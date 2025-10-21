@@ -3,7 +3,7 @@
 import rclpy
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, QoSReliabilityPolicy, QoSDurabilityPolicy, QoSHistoryPolicy
-from base_station_interfaces.msg import Connections, ConsoleLog, Status, UCommandRadio
+from base_station_interfaces.msg import Connections, ConsoleLog, Status, UCommandBase
 from base_station_interfaces.srv import BeaconId, Init, LoadMission
 from std_msgs.msg import String
 from std_msgs.msg import Int8
@@ -86,7 +86,7 @@ class RFBridge(Node):
             10)
         
         self.key_controls_subscription = self.create_subscription(
-            UCommandRadio,
+            UCommandBase,
             'radio_key_command',
             self.key_controls_callback,
             10)
