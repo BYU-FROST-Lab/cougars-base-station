@@ -139,7 +139,7 @@ class Base_Station_Wifi(Node):
             # Call deploy function to send missions to vehicles
             deploy.main(self, [request.vehicle_id], [request.mission_path.data])
             self.console_log.publish(ConsoleLog(message="Loading Mission Command Complete", vehicle_number=request.vehicle_id))
-            self.reload_params_publisher.publish(Empty())
+            self.reload_params_publishers[request.vehicle_id].publish(Empty())
             response.success = True
         except Exception as e:
             err_msg = f"Mission loading failed: {e}"
@@ -211,7 +211,7 @@ class Base_Station_Wifi(Node):
                 msg = Connections()
                 msg.connection_type = 2  # WiFi connections
                 msg.vehicle_ids = self.vehicles_in_mission
-                msg.connections = [final_connections.get(vehicle, False) for vehicle in self.vehicles_in_mission]
+                msg.connections = [False for vehicle in self.vehicles_in_mission]
 
                 # Calculate time since last successful ping
                 current_time = self.get_clock().now()
