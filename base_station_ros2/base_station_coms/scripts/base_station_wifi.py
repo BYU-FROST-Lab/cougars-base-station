@@ -88,35 +88,49 @@ class Base_Station_Wifi(Node):
     def keyboard_controls_callback(self, msg):
         """Callback for keyboard controls messages, republishes to the appropriate vehicle topic"""
         self.get_logger().info(f"Received keyboard controls for vehicle {msg.vehicle_id}")
-
-        if msg.thruster_enabled != self.thruster_enabled[msg.vehicle_id]:
-            self.thruster_enabled[msg.vehicle_id] = msg.thruster_enabled
-            # Call arm_thruster service to update thruster state
-            thruster_client = self.thruster_clients[msg.vehicle_id]
-            service_request = SetBool.Request()
-            service_request.data = msg.thruster_enabled
-
-            if not thruster_client.wait_for_service(timeout_sec=1.0):
-                self.get_logger().error("arm_thruster service not available")
-                return
-
-            try:
-                future = thruster_client.call_async(service_request)
-                rclpy.spin_until_future_complete(self, future)
-                service_response = future.result()
-                
-                if service_response.success:
-                    state_str = "enabled" if msg.thruster_enabled else "disabled"
-                    self.get_logger().info(f"Thruster has been {state_str}.")
-                else:
-                    self.get_logger().error("Failed to change thruster state.")
-                    
-            except Exception as e:
-                self.get_logger().error(f"Error while trying to change thruster state: {str(e)}")
-                return
-
+        self.get_logger().info(f"Thruster enabled: {msg.thruster_enabled}, Current state: {self.thruster_enabled[msg.vehicle_id]}")
+        
+        # Always publish the command first to ensure it gets sent
         command_msg = msg.ucommand
         self.keyboard_controls_publishers[msg.vehicle_id].publish(command_msg)
+        
+        # Then handle thruster state change if needed
+        if msg.thruster_enabled != self.thruster_enabled[msg.vehicle_id]:
+            self.get_logger().info(f"Thruster state change detected for vehicle {msg.vehicle_id}: {msg.thruster_enabled}")
+            self.thruster_enabled[msg.vehicle_id] = msg.thruster_enabled
+            # Call arm_thruster service asynchronously to avoid blocking
+            self.send_thruster_command_async(msg.vehicle_id, msg.thruster_enabled)
+
+    def send_thruster_command_async(self, vehicle_id, enable):
+        """Send thruster command asynchronously without blocking"""
+        thruster_client = self.thruster_clients[vehicle_id]
+        service_request = SetBool.Request()
+        service_request.data = enable
+
+        if not thruster_client.wait_for_service(timeout_sec=0.1):  # Very short timeout
+            self.get_logger().error(f"arm_thruster service not available for vehicle {vehicle_id}")
+            return
+
+        try:
+            # Send async request without blocking
+            future = thruster_client.call_async(service_request)
+            
+            # Add callback to handle the response
+            def handle_thruster_response(future_result):
+                try:
+                    service_response = future_result.result()
+                    if service_response.success:
+                        state_str = "enabled" if enable else "disabled"
+                        self.get_logger().info(f"Thruster has been {state_str} for vehicle {vehicle_id}.")
+                    else:
+                        self.get_logger().error(f"Failed to change thruster state for vehicle {vehicle_id}.")
+                except Exception as e:
+                    self.get_logger().error(f"Error in thruster response callback for vehicle {vehicle_id}: {str(e)}")
+            
+            future.add_done_callback(handle_thruster_response)
+            
+        except Exception as e:
+            self.get_logger().error(f"Error while trying to change thruster state for vehicle {vehicle_id}: {str(e)}")
 
     def send_e_kill_callback(self, request, response):
         vehicle_id = request.beacon_id
@@ -256,7 +270,7 @@ class Base_Station_Wifi(Node):
                 msg = Connections()
                 msg.connection_type = 2  # WiFi connections
                 msg.vehicle_ids = self.vehicles_in_mission
-                msg.connections = [self.connection_status[vehicle] for vehicle in self.vehicles_in_mission]
+                msg.connections = [False for vehicle in self.vehicles_in_mission] #self.connection_status[vehicle]
 
                 # Calculate time since last successful ping
                 current_time = self.get_clock().now()

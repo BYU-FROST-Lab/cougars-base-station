@@ -551,6 +551,7 @@ class RFBridge(Node):
                 "command": {
                     "fin": list(msg.ucommand.fin),
                     "throttle": int(msg.ucommand.thruster),
+                    "enable": bool(msg.thruster_enabled)
                 }
             }
             self.send_message(json.dumps(key_msg), self.radio_addresses.get(vehicle_id, None))

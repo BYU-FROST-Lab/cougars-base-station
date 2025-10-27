@@ -90,6 +90,8 @@ TeleopCommand::TeleopCommand() :
      0.0     // 4th fin (if needed)
   };
   last_command_msg_.ucommand.thruster = static_cast<double>(thruster_value_);
+  last_command_msg_.thruster_enabled = thruster_enabled_;
+
 
   // Create timer for rate-limited publishing
   int timer_period_ms = static_cast<int>(1000.0 / publish_rate_hz_);
@@ -266,6 +268,7 @@ void TeleopCommand::publishCommand()
   };
   // Only send thruster value if thruster is enabled, otherwise send 0
   last_command_msg_.ucommand.thruster = thruster_enabled_ ? static_cast<double>(thruster_value_) : 0.0;
+  last_command_msg_.thruster_enabled = thruster_enabled_;
 
   command_pub_->publish(last_command_msg_);
   
