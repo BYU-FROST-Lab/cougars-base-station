@@ -69,7 +69,7 @@
         "fossen_model": "torpedo",
         "control_mode": "manualControl",
         "control_scheme": 1,  
-        "location": [493.9, 244.5,-290.8],
+        "location": [493.9, 244.5, -10.0],
         "rotation": [0,0,35],
         "dynamics": {
                 "mass": 31.03,
@@ -117,7 +117,7 @@
                 "K_d": 0.5,
                 "K_sigma": 0.05
             }
-        }
+            }
         }
     ]
 }

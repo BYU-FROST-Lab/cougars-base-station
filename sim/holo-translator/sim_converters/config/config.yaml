@@ -7,7 +7,7 @@
     water_salinity_ppt: 0.0
     fluid_pressure_atm: 87250.0
     holoocean_vehicle: "auv0"
-    frost_vehicle: "coug2"
+    frost_vehicle: "coug0"
 
 
 # depth_reverse:
@@ -16,5 +16,7 @@
 
 ucommand_bridge:
   ros__parameters:
+    frost_vehicle: "coug0"
+    holoocean_vehicle: "auv0"
     fin_scalar: -3.0
     publish_thruster: false

@@ -924,8 +924,17 @@ class MainWindow(QMainWindow):
         dlg = LoadMissionsDialog(parent=self, background_color=self.background_color, text_color=self.text_color, pop_up_window_style=self.pop_up_window_style, selected_vehicles=self.selected_vehicles)
         if dlg.exec():
             start_config = dlg.get_states()
-            selected_files = list(start_config['selected_files'].values())
-            threading.Thread(target=deploy_in_thread, args=(selected_files,), daemon=True).start()
+            # Extract files in the same order as selected_vehicles
+            try:
+                print(f"DEBUG: selected_vehicles = {self.selected_vehicles}")
+                print(f"DEBUG: start_config = {start_config}")
+                selected_files = [start_config['selected_files'][f"Vehicle {i}"] for i in self.selected_vehicles]
+                threading.Thread(target=deploy_in_thread, args=(selected_files,), daemon=True).start()
+            except KeyError as e:
+                err_msg = f"Error extracting files: {e}. Available keys: {list(start_config.get('selected_files', {}).keys())}"
+                print(err_msg)
+                self.replace_confirm_reject_label(err_msg)
+                for i in self.selected_vehicles: self.recieve_console_update(err_msg, i)
         else:
             err_msg = "Mission Loading command was cancelled."
             for i in self.selected_vehicles: self.recieve_console_update(err_msg, i)
@@ -2666,7 +2675,7 @@ def OpenWindow(ros_node, borders=False):
     app.processEvents()
 
     # Show configuration dialog ON TOP of splash
-    options = [f"Vehicle {i}" for i in range(1, 5)] + ["select custom: "]
+    options = [f"Vehicle {i}" for i in range(0, 5)] + ["select custom: "]
     dlg = ConfigurationWindow(options, parent=splash, background_color="#0F1C37", text_color="#FFFFFF")
     dlg.setWindowModality(Qt.WindowModality.ApplicationModal)
     dlg.setWindowFlag(Qt.WindowType.WindowStaysOnTopHint)
@@ -2789,14 +2798,14 @@ class LoadMissionsDialog(QDialog):
         pop_up_window_style (str): Custom stylesheet for the dialog.
         selected_vehicles (list): List of selected vehicle numbers.
     """
-    def __init__(self, parent=None, vehicle=0, background_color="white", text_color="black", pop_up_window_style=None, selected_vehicles=None):
+    def __init__(self, parent=None, vehicle=None, background_color="white", text_color="black", pop_up_window_style=None, selected_vehicles=None):
         """
         Parameters:
             options (list of str): List of checkbox labels.
         """
         super().__init__(parent)
         # Set window title based on mode
-        if not vehicle: self.setWindowTitle("Load All Missions")
+        if vehicle is None: self.setWindowTitle("Load All Missions")
         else: self.setWindowTitle(f"Load Vehicle{vehicle} Mission")
         self.checkboxes = {}
         layout = QVBoxLayout()
@@ -2808,7 +2817,7 @@ class LoadMissionsDialog(QDialog):
 
         self.file_display_labels = {}  # Store file display labels for each tab
 
-        if not vehicle:
+        if vehicle is None:
             # Multi-vehicle mode: create tabs for each vehicle
             self.selected_files = {}  # Store files per tab
             #Create the tabs
@@ -2873,7 +2882,7 @@ class LoadMissionsDialog(QDialog):
         buttonBox.accepted.connect(self.validate_and_accept)
         button_row = QHBoxLayout()
 
-        if not vehicle:
+        if vehicle is None:
             # "Apply to All" button for multi-vehicle mode
             applyAllButton = QPushButton("Apply to All")
             button_row.addWidget(applyAllButton)
@@ -2999,18 +3008,18 @@ class StartMissionsDialog(QDialog):
         options (list of str): List of option labels.
         parent (QWidget, optional): Parent widget.
         passed_option_map (dict): Mapping from option label to internal key.
-        vehicle (int): If 0, multi-vehicle mode; otherwise, single vehicle mode.
+        vehicle (int): If None, multi-vehicle mode; otherwise, single vehicle mode.
         background_color (str): Background color for the dialog.
         text_color (str): Text color for the dialog.
         pop_up_window_style (str): Custom stylesheet for the dialog.
     """
-    def __init__(self, options, parent=None, passed_option_map=None, vehicle=0, background_color="white", text_color="black", pop_up_window_style=None):
+    def __init__(self, options, parent=None, passed_option_map=None, vehicle=None, background_color="white", text_color="black", pop_up_window_style=None):
         """
         Parameters:
             options (list of str): List of checkbox labels.
         """
         super().__init__(parent)
-        if not vehicle: self.setWindowTitle("Start All Missions Configuration")
+        if vehicle is None: self.setWindowTitle("Start All Missions Configuration")
         else: self.setWindowTitle(f"Start Vehicle{vehicle} Mission Configuration")
         self.checkboxes = {}
         self.passed_option_map = passed_option_map
