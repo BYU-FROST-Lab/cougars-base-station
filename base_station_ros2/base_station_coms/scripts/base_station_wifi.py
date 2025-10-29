@@ -270,7 +270,7 @@ class Base_Station_Wifi(Node):
                 msg = Connections()
                 msg.connection_type = 2  # WiFi connections
                 msg.vehicle_ids = self.vehicles_in_mission
-                msg.connections = [False for vehicle in self.vehicles_in_mission] #self.connection_status[vehicle]
+                msg.connections = [self.connection_status[vehicle] for vehicle in self.vehicles_in_mission] #
 
                 # Calculate time since last successful ping
                 current_time = self.get_clock().now()
