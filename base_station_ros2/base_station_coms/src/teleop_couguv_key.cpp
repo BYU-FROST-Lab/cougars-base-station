@@ -327,13 +327,13 @@ void TeleopCommand::processKey(char key)
       command_dirty_ = true;  // Mark for publishing
       break;
     case ' ': // Space key
-      thruster_value_ = std::min(2000, thruster_value_ + 50);
+      thruster_value_ = std::min(100, thruster_value_ + 5);
       RCLCPP_DEBUG(get_logger(), "Spacebar - Increased thruster to %d", thruster_value_);
       command_dirty_ = true;  // Mark for publishing
       break;
     case 'r':
     case 'R':
-      thruster_value_ = std::max(0, thruster_value_ - 50);
+      thruster_value_ = std::max(0, thruster_value_ - 5);
       RCLCPP_DEBUG(get_logger(), "R - Decreased thruster to %d", thruster_value_);
       command_dirty_ = true;  // Mark for publishing
       break;
@@ -341,7 +341,7 @@ void TeleopCommand::processKey(char key)
     case ',':
     case '-':
     case '_':
-      thruster_value_ = std::max(0, thruster_value_ - 50);
+      thruster_value_ = std::max(0, thruster_value_ - 5);
       RCLCPP_DEBUG(get_logger(), "Decrease key - Decreased thruster to %d", thruster_value_);
       command_dirty_ = true;  // Mark for publishing
       break;
