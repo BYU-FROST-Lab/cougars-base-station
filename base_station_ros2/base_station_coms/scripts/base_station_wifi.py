@@ -48,7 +48,7 @@ class Base_Station_Wifi(Node):
         self.reload_params_publishers = {}
         self.keyboard_controls_publishers = {}
         for vehicle in self.vehicles_in_mission:
-            self.reload_params_publishers[vehicle] = self.create_publisher(Empty, f'coug{vehicle}/reload_params', 10)
+            self.reload_params_publishers[vehicle] = self.create_publisher(Empty, f'coug{vehicle}/reload_parameters', 10)
             self.init_publishers[vehicle] = self.create_publisher(SystemControl, f'coug{vehicle}/system/status', 10)
             self.keyboard_controls_publishers[vehicle] = self.create_publisher(UCommand, f'coug{vehicle}/controls/command', 10)
             self.thruster_clients[vehicle] = self.create_client(SetBool, f'coug{vehicle}/arm_thruster')
@@ -198,7 +198,7 @@ class Base_Station_Wifi(Node):
             # Call deploy function to send missions to vehicles
             deploy.main(self, [request.vehicle_id], [request.mission_path.data])
             self.console_log.publish(ConsoleLog(message="Loading Mission Command Complete", vehicle_number=request.vehicle_id))
-            self.reload_params_publisher.publish(Empty())
+            self.reload_params_publishers[request.vehicle_id].publish(Empty())
             response.success = True
         except Exception as e:
             err_msg = f"Mission loading failed: {e}"
