@@ -4,7 +4,6 @@
 
 /**:
   ros__parameters:
-
     vehicle_ID: 1
 
     water_salinity_ppt: 0.0 # 0 for fresh water, 35 for salt water
@@ -13,11 +12,9 @@
     demo_mode: false
 
 coug0: # Change this to match the vehicle name
-
-
   coug_controls:
     ros__parameters:
-    ############### CHANGE PER VEHICLE ############
+      ############### CHANGE PER VEHICLE ############
       pid_timer_period: 80 # in ms, 80 from experimentation with the depth sensor
       depth_kp: 0.0
       depth_ki: 0.00
@@ -34,8 +31,8 @@ coug0: # Change this to match the vehicle name
       heading_kd: 0.0
       heading_min_output: 0.0 # minimum fin angle from center (-25.0 from advice from NSWC PCD)
       heading_max_output: 0.0 # maximum fin angle from center (25.0 from advice from NSWC PCD)
-      wn_d_z: 0.0    #LP filter desired natural frequency for depth
-      wn_d_theta: 0.0    #LP filter desired natural frequency for pitch
+      wn_d_z: 0.0 #LP filter desired natural frequency for depth
+      wn_d_theta: 0.0 #LP filter desired natural frequency for pitch
       outer_loop_threshold: 0.0
       saturation_offset: 0.0
       depth_from_bottom: false
@@ -52,9 +49,9 @@ coug0: # Change this to match the vehicle name
   coug_kinematics:
     ros__parameters:
       trim_ratio: 0.0 # multiplied by the velocity
-      top_fin_offset: 0.0 # offset in degrees for the top fin 
-      right_fin_offset: 0.0 # offset in degrees port fin 
-      left_fin_offset: 0.0 # offset in degrees starboard fin 
+      top_fin_offset: 0.0 # offset in degrees for the top fin
+      right_fin_offset: 0.0 # offset in degrees port fin
+      left_fin_offset: 0.0 # offset in degrees starboard fin
       demo_mode: false # if true, disables the thruster
       fin_0_direction: 1 # 1 for forward, -1 for reverse
       fin_1_direction: -1 # 1 for forward, -1 for reverse
@@ -73,17 +70,17 @@ coug0: # Change this to match the vehicle name
 
   gps_odom:
     ros__parameters:
-    ############### CHANGE PER MISSION ############
+      ############### CHANGE PER MISSION ############
       origin.latitude: 40.0717976 #40.23933750  # 40.23844451917827 # 40.2735 for Utah Lake
       origin.longitude: -111.6002054 #-111.73949720  # -111.73952716770287 # -111.7126 for Utah Lake
       origin.altitude: 1367.00 # from testing
 
   manual_mission:
     ros__parameters:
-    ############### CHANGE PER MISSION ############
+      ############### CHANGE PER MISSION ############
       command_timer_period: 0.5 # in seconds CHANGE
       state_1_count: 20 # time spent in state 1 (in intervals based on command_timer_period)
-      state_1_depth: 0.0  # in meters (positive is deeper)
+      state_1_depth: 0.0 # in meters (positive is deeper)
       state_1_heading: 0.0 # in degrees
       state_1_speed: 20.0 # TODO: add here
       state_2_count: 45 # time spent in state 2 (in intervals based on command_timer_period)
@@ -97,14 +94,15 @@ coug0: # Change this to match the vehicle name
 
   fins_manual:
     ros__parameters:
-     ############### CHANGE PER MISSION ############
+      ############### CHANGE PER MISSION ############
 
       # command_timer_period: 0.5 # in seconds
       # commands: "[7, 35, 35, 35, 0], [6, -35, -35, -35, 12], [7, 35, 35, 35, 0]"
 
       ###### SYSTEM ID TEST
       command_timer_period: 0.1
-      commands: "[100, 0, 0, 0, 0],[20, 0, 0, 0, 60], [5, 0, 0, 0, 0], [10, 0, 0,
+      commands:
+        "[100, 0, 0, 0, 0],[20, 0, 0, 0, 60], [5, 0, 0, 0, 0], [10, 0, 0,
         0, 35], [30, 25, 0, 0, 35], [5, 0, 0, 0, 35], [30, 0, 25, -25, 35], [30, 0,
         -25, 25, 35], [5, 0, 0, 0, 35], [40, 25, -25, -25, 35], [20, 0, 0, 0, 0],
         [10, 0, 0, 0, -20]"

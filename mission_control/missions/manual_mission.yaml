@@ -18,7 +18,7 @@ states:
     depth: 2.0
     heading: -160.0
     speed: 35.0
-  
+
   - name: surface
     time_seconds: 20.0
     depth: 0.0

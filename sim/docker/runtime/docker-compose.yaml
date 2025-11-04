@@ -24,4 +24,4 @@ services:
       - ../../../../config:/home/ue4/config
       - ./entrypoint.sh:/home/ue4/entrypoint.sh
     entrypoint: ["/bin/bash", "/home/ue4/entrypoint.sh"]
-    restart: always  # Optional: Keeps the container running after exit unless you want it to be removed like with --rm
+    restart: always # Optional: Keeps the container running after exit unless you want it to be removed like with --rm

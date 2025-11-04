@@ -31,9 +31,9 @@ You can also import this module and use it directly in your code.
 
 
 def generate_typestore(
-        msgs_dirs:list[str]|str = [], 
-        ros_distro = ts.Stores.ROS2_HUMBLE,
-        verbose:bool = True
+    msgs_dirs: list[str] | str = [],
+    ros_distro=ts.Stores.ROS2_HUMBLE,
+    verbose: bool = True,
 ):
     """
     Creates a Typestore that includes all the ros messages for a base ros distribution
@@ -47,42 +47,49 @@ def generate_typestore(
     return:
         typestore: The Typestore with the base and custom ros message types
 
-    The method loops through all subdirectories of "msgs_dirs" until it finds a package with a 
+    The method loops through all subdirectories of "msgs_dirs" until it finds a package with a
     'msgs' subdirectory. Then it registers all the the "*.msg" files in that directory.
     It ignores "build" and "install" directories.
     """
-    if isinstance(msgs_dirs, str): msgs_dirs = [msgs_dirs]
+    if isinstance(msgs_dirs, str):
+        msgs_dirs = [msgs_dirs]
     typestore = ts.get_typestore(ros_distro)
-    if verbose: print(f"Initialized Typestore with {ros_distro.name} base messages")
+    if verbose:
+        print(f"Initialized Typestore with {ros_distro.name} base messages")
     for msgs_dir in msgs_dirs:
         msgs_source = pathof(msgs_dir)
-        if verbose: print(f"Searching {os.path.abspath(msgs_dir)} for ROS messages...")
+        if verbose:
+            print(f"Searching {os.path.abspath(msgs_dir)} for ROS messages...")
         for root, dirs, files in os.walk(msgs_source):
             # Ignore messages in build and install folders
-            if "build" in dirs: dirs.remove("build")
-            if "install" in dirs: dirs.remove("install")
+            if "build" in dirs:
+                dirs.remove("build")
+            if "install" in dirs:
+                dirs.remove("install")
 
-            if os.path.basename(root) == 'msg':
-                if verbose: print(f"Registering Messages in {os.path.abspath(root)}")
+            if os.path.basename(root) == "msg":
+                if verbose:
+                    print(f"Registering Messages in {os.path.abspath(root)}")
                 msg_name_prefix = os.path.basename(Path(root).parent) + "/msg/"
                 for file in files:
-                    if(file.endswith(".msg")):
+                    if file.endswith(".msg"):
                         filepath = Path(root) / file
                         # if verbose: print(f"\t{os.path.abspath(filepath)}")
                         text = filepath.read_text()
                         name = msg_name_prefix + file[:-4]
                         typestore.register(ts.get_types_from_msg(text, name))
-                        if verbose: print(f"\tRegistered {name}")
+                        if verbose:
+                            print(f"\tRegistered {name}")
     return typestore
 
 
 def rosmsg_generator(
-        bags_dirs:list[str|Path], 
-        typestore, 
-        topics:list[str]|None = None,
-        excluded_topics:list[str]|None = None,
-        keywords:list[str]|None = None, 
-        verbose:bool=False
+    bags_dirs: list[str | Path],
+    typestore,
+    topics: list[str] | None = None,
+    excluded_topics: list[str] | None = None,
+    keywords: list[str] | None = None,
+    verbose: bool = False,
 ):
     """
     Generates ros messages from a directory containing rosbags.
@@ -94,7 +101,7 @@ def rosmsg_generator(
         excluded_topics: a list of topics to exclude independant of namespace. If None, no topics are excluded.
         keywords: if not None, only bags whose name contains a keyword will be processed
         verbose: if true, prints updates as rosbags are unpacked
-    
+
     yields:
         connection: metadata for the ros message
         msg: a ros message
@@ -105,44 +112,61 @@ def rosmsg_generator(
             path = Path(root)
             if keywords:
                 basename = os.path.basename(root)
-                has_keyword=False
+                has_keyword = False
                 for keyword in keywords:
-                    if keyword in basename: has_keyword=True
-                if not has_keyword: continue
+                    if keyword in basename:
+                        has_keyword = True
+                if not has_keyword:
+                    continue
             # process rosbag
             if "metadata.yaml" in files:
-                if verbose: print(f"Unpacking {os.path.abspath(path)}")
+                if verbose:
+                    print(f"Unpacking {os.path.abspath(path)}")
                 msgs: dict[str, pd.DataFrame] = dict()
                 with AnyReader([path], default_typestore=typestore) as reader:
                     if topics is None:
                         if excluded_topics is None:
                             connections = [x for x in reader.connections]
                         else:
-                            connections = [x for x in reader.connections if 
-                                           any(t.endswith(x.topic) for t in excluded_topics)]
+                            connections = [
+                                x
+                                for x in reader.connections
+                                if any(t.endswith(x.topic) for t in excluded_topics)
+                            ]
                     else:
-                        connections = [x for x in reader.connections if 
-                                       any(t.endswith(x.topic) for t in topics)]
+                        connections = [
+                            x
+                            for x in reader.connections
+                            if any(t.endswith(x.topic) for t in topics)
+                        ]
                     try:
-                        for connection, timestamp, rawdata in reader.messages(connections=connections):
+                        for connection, timestamp, rawdata in reader.messages(
+                            connections=connections
+                        ):
                             try:
                                 msg = reader.deserialize(rawdata, connection.msgtype)
                                 yield connection, msg, path
                             except KeyError as e:
-                                print(f"Could not find {e} in typestore. Skipping message")
+                                print(
+                                    f"Could not find {e} in typestore. Skipping message"
+                                )
                             except:
-                                raise RuntimeError(f"Could not decode message on topic {connection.topic} with msgtype:{connection.msgtype}")
+                                raise RuntimeError(
+                                    f"Could not decode message on topic {connection.topic} with msgtype:{connection.msgtype}"
+                                )
                     except RuntimeError as e:
-                        print(f"Error reading rosbag at {path}. Skipping Bag. Error msg: {e}")
+                        print(
+                            f"Error reading rosbag at {path}. Skipping Bag. Error msg: {e}"
+                        )
 
 
 def convert_rosbags(
-        bags_dir:str|Path, 
-        typestore, 
-        topics:list[str]|None = None,
-        excluded_topics:list[str]|None = None,
-        keywords:list[str]|None = None, 
-        verbose:bool=False
+    bags_dir: str | Path,
+    typestore,
+    topics: list[str] | None = None,
+    excluded_topics: list[str] | None = None,
+    keywords: list[str] | None = None,
+    verbose: bool = False,
 ):
     """
     Converts rosbags into pandas DataFrames.
@@ -156,12 +180,14 @@ def convert_rosbags(
         verbose: if true, prints updates as rosbags are unpacked
 
     returns:
-        dataframes: a dictionary from relative rosbag paths to topics, where 
+        dataframes: a dictionary from relative rosbag paths to topics, where
             topics is a dictionary from topic names to pandas DataFrames
     """
+
     def values_generator(msg, prefix=None):
         for attr, val in msg.__dict__.items():
-            if attr=='__msgtype__': continue
+            if attr == "__msgtype__":
+                continue
             name = attr if prefix is None else f"{prefix}.{attr}"
             if hasattr(val, "__dict__"):
                 yield from values_generator(val, name)
@@ -172,10 +198,12 @@ def convert_rosbags(
 
     dataframes: dict[Path, dict[str, pd.DataFrame]] = dict()
     topic_data = None
-    for connection, msg, path in rosmsg_generator([bags_dir], 
-    typestore, topics, excluded_topics, keywords, verbose=verbose):
-        if connection.topic=='/rosout': continue
-        relpath = path.relative_to(bags_dir)       
+    for connection, msg, path in rosmsg_generator(
+        [bags_dir], typestore, topics, excluded_topics, keywords, verbose=verbose
+    ):
+        if connection.topic == "/rosout":
+            continue
+        relpath = path.relative_to(bags_dir)
         if relpath not in dataframes.keys():
             dataframes[relpath] = dict()
             topic_data = dataframes[relpath]
@@ -194,15 +222,13 @@ def convert_rosbags(
 
 
 def save_to_csv(
-        dataframes:dict[Path, dict[str, pd.DataFrame]],
-        out_dir:str,
-        verbose:bool = False
+    dataframes: dict[Path, dict[str, pd.DataFrame]], out_dir: str, verbose: bool = False
 ):
     """
-    Saves pandas DataFrames generated from rosmsgs to csv files. 
+    Saves pandas DataFrames generated from rosmsgs to csv files.
 
     args:
-        dataframes: a dictionary from relative rosbag paths to topics, where 
+        dataframes: a dictionary from relative rosbag paths to topics, where
             topics is a dictionary from topic names to pandas DataFrames.
         out_dir: the directory to save the csv files to
         verbose: if true, prints updates as dataframes are saved
@@ -212,19 +238,20 @@ def save_to_csv(
     """
     outpath = pathof(out_dir)
     for relpath, topics in dataframes.items():
-        relpath = relpath.parent / ("converted__"+os.path.basename(relpath))
-        if verbose: print(f"Saving {os.path.abspath(outpath / relpath)}")
+        relpath = relpath.parent / ("converted__" + os.path.basename(relpath))
+        if verbose:
+            print(f"Saving {os.path.abspath(outpath / relpath)}")
         for topic, dataframe in topics.items():
-            topicname = topic.replace('/', '.') + ".csv"
-            if topicname[0]=='.': topicname = topicname[1:]
+            topicname = topic.replace("/", ".") + ".csv"
+            if topicname[0] == ".":
+                topicname = topicname[1:]
             fullpath = outpath / relpath / topicname
             fullpath.parent.mkdir(parents=True, exist_ok=True)
             dataframe.to_csv(os.path.abspath(fullpath), index=False)
 
+
 def load_dataframes(
-        csv_dir:Path|str, 
-        keywords:list[str]=None, 
-        verbose:bool=False
+    csv_dir: Path | str, keywords: list[str] = None, verbose: bool = False
 ):
     """
     Reads csvs into dataframes with the same structure rosbags are saved.
@@ -235,44 +262,50 @@ def load_dataframes(
         verbose: if True, prints updates as files are loaded
 
     returns:
-        dataframes: a dictionary from relative rosbag paths to topics, where 
+        dataframes: a dictionary from relative rosbag paths to topics, where
             topics is a dictionary from topic names to pandas DataFrames
 
     Topics are converted from file names like so:
     my.ros.topic.csv --> /my/ros/topic
     """
     csv_dir = pathof(csv_dir)
-    dataframes:dict[Path, dict[str, pd.DataFrame]] = dict()
+    dataframes: dict[Path, dict[str, pd.DataFrame]] = dict()
     for root, dirs, files in os.walk(csv_dir):
         if keywords:
             basename = os.path.basename(root)
-            has_keyword=False
+            has_keyword = False
             for keyword in keywords:
-                if keyword in basename: has_keyword=True
-            if not has_keyword: continue
+                if keyword in basename:
+                    has_keyword = True
+            if not has_keyword:
+                continue
         contains_csv = False
         for file in files:
-            if file.endswith(".csv"): contains_csv = True
+            if file.endswith(".csv"):
+                contains_csv = True
         if contains_csv:
             dir = Path(root)
-            if verbose: print(f"Loading {os.path.abspath(dir)}")
+            if verbose:
+                print(f"Loading {os.path.abspath(dir)}")
             reldir = dir.relative_to(csv_dir)
             topics = dict()
             dataframes[reldir] = topics
             for file in files:
                 if file.endswith(".csv"):
-                    topic_name = "/"+file[:-4].replace(".", "/")
-                    topics[topic_name] = pd.read_csv(dir/file)
+                    topic_name = "/" + file[:-4].replace(".", "/")
+                    topics[topic_name] = pd.read_csv(dir / file)
     return dataframes
-            
 
-def pathof(p:str|Path):
+
+def pathof(p: str | Path):
     """Lets user use ~ in paths as a shortcut for home dir"""
-    if isinstance(p,Path): return p
-    else: return Path.home()/p[2:] if p[0]=='~' else Path(p)
+    if isinstance(p, Path):
+        return p
+    else:
+        return Path.home() / p[2:] if p[0] == "~" else Path(p)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
 
     rosbags_dir = Path.cwd()
     msgs_dirs = [Path.cwd()]
@@ -284,15 +317,15 @@ if __name__ == '__main__':
         if arg.startswith("bagsDir:="):
             rosbags_dir = pathof(arg[9:])
         elif arg.startswith("msgsDir:="):
-            msgs_dirs = [pathof(s) for s in arg[9:].split(',')]
+            msgs_dirs = [pathof(s) for s in arg[9:].split(",")]
         elif arg.startswith("outDir:="):
             out_dir = pathof(arg[8:])
         elif arg.startswith("topics:="):
-            topics = arg[8:].split(',')
+            topics = arg[8:].split(",")
         elif arg.startswith("excludedTopics:="):
-            excluded_topics = arg[16:].split(',')
+            excluded_topics = arg[16:].split(",")
         elif arg.startswith("keywords:="):
-            keywords = arg[10:].split(',')
+            keywords = arg[10:].split(",")
 
     print(excluded_topics)
 
@@ -301,13 +334,6 @@ if __name__ == '__main__':
 
     typestore = generate_typestore(msgs_dirs, verbose=True)
     dataframes = convert_rosbags(
-        rosbags_dir, 
-        typestore, 
-        topics, 
-        excluded_topics,
-        keywords,
-        verbose=True
+        rosbags_dir, typestore, topics, excluded_topics, keywords, verbose=True
     )
     save_to_csv(dataframes, out_dir, verbose=True)
-
-

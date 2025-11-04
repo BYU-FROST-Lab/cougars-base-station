@@ -9,10 +9,8 @@
     holoocean_vehicle: "auv0"
     frost_vehicle: "coug2"
 
-
 # depth_reverse:
 #   ros__parameters:
-
 
 ucommand_bridge:
   ros__parameters:

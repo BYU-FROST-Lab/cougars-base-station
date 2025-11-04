@@ -12,18 +12,59 @@ import rclpy
 from std_msgs.msg import Header, Bool, String
 
 # PyQt6 imports for GUI components
-from PyQt6.QtWidgets import (QScrollArea, QApplication, QMainWindow, 
-    QWidget, QPushButton, QTabWidget, QVBoxLayout, QHBoxLayout, QLabel, 
-    QFrame,QSizePolicy, QSplashScreen, QCheckBox, QSpacerItem, QGridLayout, 
-    QToolBar, QSlider, QStyle, QLineEdit, QWidget, QDialog, QFileDialog, 
-    QDialogButtonBox, QMessageBox, QColorDialog
+from PyQt6.QtWidgets import (
+    QScrollArea,
+    QApplication,
+    QMainWindow,
+    QWidget,
+    QPushButton,
+    QTabWidget,
+    QVBoxLayout,
+    QHBoxLayout,
+    QLabel,
+    QFrame,
+    QSizePolicy,
+    QSplashScreen,
+    QCheckBox,
+    QSpacerItem,
+    QGridLayout,
+    QToolBar,
+    QSlider,
+    QStyle,
+    QLineEdit,
+    QWidget,
+    QDialog,
+    QFileDialog,
+    QDialogButtonBox,
+    QMessageBox,
+    QColorDialog,
 )
-from PyQt6.QtGui import (QColor, QPalette, QFont, QPixmap, QKeySequence, QShortcut, QCursor, 
-    QPainter, QAction, QIcon, QActionGroup
+from PyQt6.QtGui import (
+    QColor,
+    QPalette,
+    QFont,
+    QPixmap,
+    QKeySequence,
+    QShortcut,
+    QCursor,
+    QPainter,
+    QAction,
+    QIcon,
+    QActionGroup,
 )
-from PyQt6.QtCore import QSize, QByteArray, Qt, QTimer, pyqtSignal, QObject, QEvent, QThread
+from PyQt6.QtCore import (
+    QSize,
+    QByteArray,
+    Qt,
+    QTimer,
+    pyqtSignal,
+    QObject,
+    QEvent,
+    QThread,
+)
 
 from pathlib import Path
+
 # ROS 2 service imports
 from base_station_interfaces.srv import BeaconId
 
@@ -35,6 +76,7 @@ from base_station_gui.waypoint_planner import App as WaypointPlannerApp
 
 
 media_directory = str(Path.home().joinpath("base_station", "images", "FRoSt_Lab.png"))
+
 
 class MainWindow(QMainWindow):
     # Main GUI window class for the base station application.
@@ -59,7 +101,7 @@ class MainWindow(QMainWindow):
         Parameters:
             ros_node (node): node passed in from ros in order to access the publisher
         """
-        
+
         super().__init__()
 
         self.buffer = ""
@@ -75,7 +117,7 @@ class MainWindow(QMainWindow):
         self.button_font_size = 15
 
         # Set default color theme for the GUI
-        self.set_color_theme("dark_mode", first_time=True) #default to dark mode
+        self.set_color_theme("dark_mode", first_time=True)  # default to dark mode
 
         # Create an exclusive action group for theme actions
         theme_action_group = QActionGroup(self)
@@ -111,7 +153,7 @@ class MainWindow(QMainWindow):
         intense_light.triggered.connect(lambda: self.set_color_theme("intense_light"))
         intense_light.setCheckable(True)
         theme_action_group.addAction(intense_light)
-        
+
         cadetblue = QAction("Cadetblue", self)
         cadetblue.triggered.connect(lambda: self.set_color_theme("cadetblue"))
         cadetblue.setCheckable(True)
@@ -127,7 +169,7 @@ class MainWindow(QMainWindow):
         file_submenu.addAction(dark_mode)
         file_submenu.addAction(light_mode)
         file_submenu.addAction(blue_pastel)
-        file_submenu.addAction(brown_sepia)        
+        file_submenu.addAction(brown_sepia)
         file_submenu.addAction(intense_dark)
         file_submenu.addAction(intense_light)
         file_submenu.addAction(cadetblue)
@@ -141,56 +183,46 @@ class MainWindow(QMainWindow):
         ###This is how the vehicle info gets into the GUI
         # feedback_dict stores status and sensor info for each vehicle
         self.feedback_dict = {
-            #0->negative, 1->positive, 2->waiting
-            #Vehicles 1-3 connections
+            # 0->negative, 1->positive, 2->waiting
+            # Vehicles 1-3 connections
             "Wifi": {vehicle_num: 2 for vehicle_num in self.selected_vehicles},
             "Radio": {vehicle_num: 2 for vehicle_num in self.selected_vehicles},
             "Modem": {vehicle_num: 2 for vehicle_num in self.selected_vehicles},
-
-            #0->negative, 1->positive, 2->waiting
-            #Vehicles 1-3 sensors
+            # 0->negative, 1->positive, 2->waiting
+            # Vehicles 1-3 sensors
             "DVL": {vehicle_num: 2 for vehicle_num in self.selected_vehicles},
             "GPS": {vehicle_num: 2 for vehicle_num in self.selected_vehicles},
             "IMU": {vehicle_num: 2 for vehicle_num in self.selected_vehicles},
             "Battery": {vehicle_num: 2 for vehicle_num in self.selected_vehicles},
-
-            #Vehicles 1-3 status messages
-            "Status_messages": {vehicle_num: "" for vehicle_num in self.selected_vehicles},
-
-            #Vehicles 1-3 message logs, lists of strings
-            "Console_messages": {vehicle_num: [] for vehicle_num in self.selected_vehicles},
-
-            #Vehicles 1-3 message logs, lists of strings
-            "Missions": {vehicle_num: "" for vehicle_num in self.selected_vehicles},    
-
-            #Vehicles 1-3 seconds since last connection, list of ints
-            "Modem_seconds": {vehicle_num: 2 for vehicle_num in self.selected_vehicles},    
-
-            #Vehicles 1-3 seconds since last radio connection, list of ints
+            # Vehicles 1-3 status messages
+            "Status_messages": {
+                vehicle_num: "" for vehicle_num in self.selected_vehicles
+            },
+            # Vehicles 1-3 message logs, lists of strings
+            "Console_messages": {
+                vehicle_num: [] for vehicle_num in self.selected_vehicles
+            },
+            # Vehicles 1-3 message logs, lists of strings
+            "Missions": {vehicle_num: "" for vehicle_num in self.selected_vehicles},
+            # Vehicles 1-3 seconds since last connection, list of ints
+            "Modem_seconds": {vehicle_num: 2 for vehicle_num in self.selected_vehicles},
+            # Vehicles 1-3 seconds since last radio connection, list of ints
             "Radio_seconds": {vehicle_num: 2 for vehicle_num in self.selected_vehicles},
-
             "Wifi_seconds": {vehicle_num: 2 for vehicle_num in self.selected_vehicles},
-
-            #Vehicles 1-3 X Position in the DVL frame
-            "XPos": {vehicle_num: 2 for vehicle_num in self.selected_vehicles},        
-            
-            #Vehicles 1-3 Y Position in the DVL frame
+            # Vehicles 1-3 X Position in the DVL frame
+            "XPos": {vehicle_num: 2 for vehicle_num in self.selected_vehicles},
+            # Vehicles 1-3 Y Position in the DVL frame
             "YPos": {vehicle_num: 2 for vehicle_num in self.selected_vehicles},
-
-            #Vehicles 1-3 Depth, list of ints
+            # Vehicles 1-3 Depth, list of ints
             "Depth": {vehicle_num: 2 for vehicle_num in self.selected_vehicles},
-
-            #Vehicles 1-3 Heading, list of ints
+            # Vehicles 1-3 Heading, list of ints
             "Heading": {vehicle_num: 2 for vehicle_num in self.selected_vehicles},
-
-            #Vehicles 1-3 Waypoint, list of ints
+            # Vehicles 1-3 Waypoint, list of ints
             "Waypoint": {vehicle_num: 2 for vehicle_num in self.selected_vehicles},
-
-            #Vehicles 1-3 Linear Velocities, list of ints
+            # Vehicles 1-3 Linear Velocities, list of ints
             "DVL_vel": {vehicle_num: 2 for vehicle_num in self.selected_vehicles},
-
-            #Vehicles 1-3 Pressures, list of ints
-            "Pressure": {vehicle_num: 2 for vehicle_num in self.selected_vehicles}
+            # Vehicles 1-3 Pressures, list of ints
+            "Pressure": {vehicle_num: 2 for vehicle_num in self.selected_vehicles},
         }
 
         # Dictionary mapping feedback_dict keys to display text for status widgets
@@ -211,24 +243,24 @@ class MainWindow(QMainWindow):
             "Record rosbag": "record_rosbag",
             "Enter rosbag prefix (string): ": "rosbag_prefix",
             "Arm Thruster": "arm_thruster",
-            "Start DVL": "start_dvl"
+            "Start DVL": "start_dvl",
         }
 
         # Dictionary mapping feedback_dict values to Qt icon types
-        #"x" symbol -> SP_MessageBoxCritical
-        #"check" symbol -> SP_DialogApplyButton
+        # "x" symbol -> SP_MessageBoxCritical
+        # "check" symbol -> SP_DialogApplyButton
         # "waiting" symbol -> SP_TitleBarContextHelpButton
         self.icons_dict = {
             0: QStyle.StandardPixmap.SP_MessageBoxCritical,
             1: QStyle.StandardPixmap.SP_DialogApplyButton,
-            2: QStyle.StandardPixmap.SP_TitleBarContextHelpButton
+            2: QStyle.StandardPixmap.SP_TitleBarContextHelpButton,
         }
 
         # Create the tab widget and set its properties
         self.tabs = QTabWidget()
-        #Orient the tabs at the tob of the screen
+        # Orient the tabs at the tob of the screen
         self.tabs.setTabPosition(QTabWidget.TabPosition.North)
-        #The tabs' order can't be changed or moved
+        # The tabs' order can't be changed or moved
         self.tabs.setMovable(False)
 
         # Create tab names and dictionary for tab widgets/layouts
@@ -246,16 +278,24 @@ class MainWindow(QMainWindow):
 
             # Add horizontal line and confirmation/rejection label
             content_layout.addWidget(self.make_hline())
-            label = QLabel("Confirmation/Rejection messages from command buttons will appear here")
-            label.setStyleSheet(f"color: {self.text_color}; font-size: 14px;") 
+            label = QLabel(
+                "Confirmation/Rejection messages from command buttons will appear here"
+            )
+            label.setStyleSheet(f"color: {self.text_color}; font-size: 14px;")
             self.confirm_reject_labels[name] = label
 
             if name.lower() != "general":
-                vehicle_number = int(name.split()[-1])  # Extract vehicle number from tab name
+                vehicle_number = int(
+                    name.split()[-1]
+                )  # Extract vehicle number from tab name
                 # For Vehicle tabs, add specific widgets and console log
-                content_layout.addWidget(self.set_specific_vehicle_widgets(vehicle_number))
+                content_layout.addWidget(
+                    self.set_specific_vehicle_widgets(vehicle_number)
+                )
                 content_layout.addWidget(self.make_hline())
-                content_layout.addWidget(self.create_specific_vehicle_console_log(vehicle_number))
+                content_layout.addWidget(
+                    self.create_specific_vehicle_console_log(vehicle_number)
+                )
                 content_layout.addWidget(label, alignment=Qt.AlignmentFlag.AlignTop)
             else:
                 # For General tab, add general widgets
@@ -301,24 +341,24 @@ class MainWindow(QMainWindow):
 
         # Get IP addresses for selected vehicles and display in console
         self.get_IP_addresses()
-        self.recieve_console_update(f"These are the Vehicle IP Addresses that were both selected and in the config.json: {self.Vehicle_IP_addresses}", 0) #declared in get_IP_addresses
-
-
-
+        self.recieve_console_update(
+            f"These are the Vehicle IP Addresses that were both selected and in the config.json: {self.Vehicle_IP_addresses}",
+            0,
+        )  # declared in get_IP_addresses
 
     def eventFilter(self, obj, event):
         if event.type() == QEvent.Type.KeyPress:
             key = event.text()
             if key:
                 # Send key press to teleop node via ROS (if ROS node is available)
-                if hasattr(self, 'ros_node') and self.ros_node:
+                if hasattr(self, "ros_node") and self.ros_node:
                     try:
                         self.ros_node.publish_keypress(key)
                         # Optional: Add debug logging
                         # print(f"Sent key '{key}' to teleop node")
                     except Exception as e:
                         print(f"Error sending key press to ROS: {e}")
-                
+
                 self.buffer += key
                 self.buffer = self.buffer[-20:]
                 trigger = base64.b64decode("ZHVja2lldG93bg==").decode()
@@ -348,7 +388,14 @@ class MainWindow(QMainWindow):
 
         label = QLabel(self)
         _dep = self.get_pyqt_depfile()
-        label.setPixmap(_dep.scaled(80, 80, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
+        label.setPixmap(
+            _dep.scaled(
+                80,
+                80,
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation,
+            )
+        )
         label.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         label.setStyleSheet("background: transparent;")
         label.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.ToolTip)
@@ -373,9 +420,10 @@ class MainWindow(QMainWindow):
 
     def load_dep_bytes_from_header(self, header_path):
         import re
+
         with open(header_path, "r") as f:
             content = f.read()
-        match = re.search(r'\{([^}]*)\}', content, re.DOTALL)
+        match = re.search(r"\{([^}]*)\}", content, re.DOTALL)
         if not match:
             raise ValueError("Could not find byte array in header file.")
         byte_str = match.group(1)
@@ -388,24 +436,25 @@ class MainWindow(QMainWindow):
         Populates self.Vehicle_IP_addresses and self.ip_to_vehicle for later use.
         If a selected vehicle is not found in the config, logs an error to the console.
         """
-        config_path = Path.home().joinpath("base_station", "mission_control", "deploy_config.json")
+        config_path = Path.home().joinpath(
+            "base_station", "mission_control", "deploy_config.json"
+        )
         # Open and parse the config file
         with open(str(config_path), "r") as f:
             config = json.load(f)
         vehicles = config["vehicles"]
         self.Vehicle_IP_addresses = []
-        self.ip_to_vehicle = {} 
+        self.ip_to_vehicle = {}
         # Loop through selected vehicles and get their IPs
         for num in self.selected_vehicles:
             if str(num) in vehicles:
-                ip = vehicles[str(num)]['remote_host']
+                ip = vehicles[str(num)]["remote_host"]
                 self.Vehicle_IP_addresses.append(ip)
-                self.ip_to_vehicle[ip] = num 
+                self.ip_to_vehicle[ip] = num
             else:
                 # Log error if vehicle not found in config
                 err_msg = f"❌ Vehicle {num} not found in config, consider adding to config.json"
                 self.recieve_console_update(err_msg, num)
-
 
     def update_wifi_widgets(self, IPs_dict):
         """
@@ -428,7 +477,7 @@ class MainWindow(QMainWindow):
                     # Log the result to the console
                     self.recieve_console_update(
                         f"{'Ping successful for' if reachable == 1 else 'Unable to Ping'} vehicle{vehicle_number}",
-                        vehicle_number
+                        vehicle_number,
                     )
                     # Update the feedback dictionary
                     self.feedback_dict["Wifi"][vehicle_number] = reachable
@@ -439,7 +488,7 @@ class MainWindow(QMainWindow):
                     self.modem_shut_off_service(bool(reachable), vehicle_number)
 
         except Exception as e:
-                print("Exception in update_wifi_widgets:", e)
+            print("Exception in update_wifi_widgets:", e)
 
     def set_color_theme(self, color_theme, first_time=False):
         """
@@ -486,7 +535,7 @@ class MainWindow(QMainWindow):
         theme = color_theme.lower()
 
         # Set color variables and stylesheets based on selected theme
-        #dark mode
+        # dark mode
         if theme == "dark_mode":
             self.background_color = "#0F1C37"
             self.border_outline = "#FFFFFF"
@@ -502,10 +551,9 @@ class MainWindow(QMainWindow):
             self.check_box_color = self.text_color
             self.dark_icon_bkgrnd_color = self.text_color
             self.light_icon_bkgrnd_color = self.background_color
-            self.pop_up_window_style = (
-                base_pop_up_style.format(bg=self.background_color, text=self.text_color) +
-                extra_checkbox_rules.format(text=self.text_color)
-            )
+            self.pop_up_window_style = base_pop_up_style.format(
+                bg=self.background_color, text=self.text_color
+            ) + extra_checkbox_rules.format(text=self.text_color)
 
         # light mode
         elif theme == "light_mode":
@@ -522,7 +570,9 @@ class MainWindow(QMainWindow):
             self.not_selected_tab_text_color = self.text_color
             self.dark_icon_bkgrnd_color = self.background_color
             self.light_icon_bkgrnd_color = self.background_color
-            self.pop_up_window_style = base_pop_up_style.format(bg=self.background_color, text=self.text_color)
+            self.pop_up_window_style = base_pop_up_style.format(
+                bg=self.background_color, text=self.text_color
+            )
 
         # blue pastel
         elif theme == "blue_pastel":
@@ -539,7 +589,9 @@ class MainWindow(QMainWindow):
             self.not_selected_tab_text_color = self.text_color
             self.dark_icon_bkgrnd_color = self.background_color
             self.light_icon_bkgrnd_color = self.background_color
-            self.pop_up_window_style = base_pop_up_style.format(bg=self.background_color, text=self.text_color)
+            self.pop_up_window_style = base_pop_up_style.format(
+                bg=self.background_color, text=self.text_color
+            )
 
         # brown sepia
         elif theme == "brown_sepia":
@@ -556,10 +608,12 @@ class MainWindow(QMainWindow):
             self.not_selected_tab_text_color = self.text_color
             self.dark_icon_bkgrnd_color = self.background_color
             self.light_icon_bkgrnd_color = self.background_color
-            self.pop_up_window_style = base_pop_up_style.format(bg=self.background_color, text=self.text_color)
+            self.pop_up_window_style = base_pop_up_style.format(
+                bg=self.background_color, text=self.text_color
+            )
 
         # Seth's special mode for the color haters
-        #Cadetblue
+        # Cadetblue
         elif theme == "cadetblue":
             self.background_color = "cadetblue"
             self.border_outline = "#44312b"
@@ -574,7 +628,9 @@ class MainWindow(QMainWindow):
             self.not_selected_tab_text_color = "black"
             self.dark_icon_bkgrnd_color = self.background_color
             self.light_icon_bkgrnd_color = self.background_color
-            self.pop_up_window_style = base_pop_up_style.format(bg=self.background_color, text=self.text_color)
+            self.pop_up_window_style = base_pop_up_style.format(
+                bg=self.background_color, text=self.text_color
+            )
 
         # Intense Dark
         elif theme == "intense_dark":
@@ -591,10 +647,9 @@ class MainWindow(QMainWindow):
             self.not_selected_tab_text_color = "white"
             self.dark_icon_bkgrnd_color = self.text_color
             self.light_icon_bkgrnd_color = self.background_color
-            self.pop_up_window_style = (
-                base_pop_up_style.format(bg=self.background_color, text=self.text_color) +
-                extra_checkbox_rules.format(text=self.text_color)
-            )
+            self.pop_up_window_style = base_pop_up_style.format(
+                bg=self.background_color, text=self.text_color
+            ) + extra_checkbox_rules.format(text=self.text_color)
 
         # Intense Light
         elif theme == "intense_light":
@@ -611,39 +666,42 @@ class MainWindow(QMainWindow):
             self.not_selected_tab_text_color = "black"
             self.dark_icon_bkgrnd_color = self.background_color
             self.light_icon_bkgrnd_color = self.background_color
-            self.pop_up_window_style = base_pop_up_style.format(bg=self.background_color, text=self.text_color)
+            self.pop_up_window_style = base_pop_up_style.format(
+                bg=self.background_color, text=self.text_color
+            )
 
-        #the first time widgets aren't created yet, so no need to change them
-        if not first_time: self.apply_theme_to_widgets()
+        # the first time widgets aren't created yet, so no need to change them
+        if not first_time:
+            self.apply_theme_to_widgets()
 
     def apply_theme_to_widgets(self):
         """
         Applies the current color theme to all widgets in the GUI.
         Updates tab colors, console log colors, button styles, label colors, and icon backgrounds.
         """
-        #get current width, and recolor the tabs themselves
+        # get current width, and recolor the tabs themselves
         width_px = self.width() // (len(self.selected_vehicles) + 1) - 10
         self.repaintTabs(width_px)
 
         bg_color, text_color = self.background_color, self.text_color
         for name in self.tab_dict:
             widget = self.tab_dict[name][0]
-            #set background color of each tab
+            # set background color of each tab
             self.set_background(widget, self.background_color)
-            #set text color of each console log
+            # set text color of each console log
             self.set_console_log_colors(self.text_color, self.background_color)
             for button in self.findChildren(QPushButton):
                 # Danger buttons
                 if (
                     "recall" in button.text().lower()
                     or "emergency" in button.text().lower()
-                    or "clear console" in button.text().lower()   # <-- Add this line
+                    or "clear console" in button.text().lower()  # <-- Add this line
                 ):
                     button.setStyleSheet(self.danger_button_style_sheet)
                 # Normal buttons
                 else:
                     button.setStyleSheet(self.normal_button_style_sheet)
-            #set text color of the labels
+            # set text color of the labels
             for label in self.findChildren(QLabel):
                 label.setStyleSheet(f"color: {self.text_color};")
 
@@ -653,7 +711,11 @@ class MainWindow(QMainWindow):
                     line.setStyleSheet(f"background-color: {self.text_color};")
 
             # Find all QLabel widgets whose objectName starts with "icon"
-            icon_labels = [label for label in self.findChildren(QLabel) if label.objectName().startswith("icon")]
+            icon_labels = [
+                label
+                for label in self.findChildren(QLabel)
+                if label.objectName().startswith("icon")
+            ]
             for ic_label in icon_labels:
                 # Use the original icon pixmap if available
                 orig_pixmap = getattr(ic_label, "_original_icon_pixmap", None)
@@ -664,12 +726,16 @@ class MainWindow(QMainWindow):
                         icon_bkgrnd = self.light_icon_bkgrnd_color
                     elif icon_type == QStyle.StandardPixmap.SP_DialogApplyButton:
                         icon_bkgrnd = self.light_icon_bkgrnd_color
-                    elif icon_type == QStyle.StandardPixmap.SP_TitleBarContextHelpButton:
+                    elif (
+                        icon_type == QStyle.StandardPixmap.SP_TitleBarContextHelpButton
+                    ):
                         icon_bkgrnd = self.dark_icon_bkgrnd_color
                     else:
                         print("Unknown icon type.")
                         continue
-                    new_pixmap = self.paintIconBackground(orig_pixmap, bg_color=icon_bkgrnd)
+                    new_pixmap = self.paintIconBackground(
+                        orig_pixmap, bg_color=icon_bkgrnd
+                    )
                     ic_label.setPixmap(new_pixmap)
 
     def repaint_icon(self, ic_label):
@@ -692,20 +758,24 @@ class MainWindow(QMainWindow):
                 print("Unknown icon type.")
             new_pixmap = self.paintIconBackground(orig_pixmap, bg_color=icon_bkgrnd)
             ic_label.setPixmap(new_pixmap)
-    
+
     def set_console_log_colors(self, text_color, background_color):
         """
         Sets the background and text color of all console log QLabel widgets.
         Iterates through each vehicle's console scroll area and updates its style.
         """
         for vehicle_number in self.selected_vehicles:
-            scroll_area = getattr(self, f"vehicle{vehicle_number}_console_scroll_area", None)
+            scroll_area = getattr(
+                self, f"vehicle{vehicle_number}_console_scroll_area", None
+            )
             if scroll_area:
                 scroll_area.setStyleSheet(
                     f"border: 2px solid {self.border_outline}; border-radius: 6px; background: {self.background_color};"
                 )
                 # Find the label inside the scroll area and set its text color
-                label = scroll_area.findChild(QLabel, f"Console_messages{vehicle_number}")
+                label = scroll_area.findChild(
+                    QLabel, f"Console_messages{vehicle_number}"
+                )
                 if label:
                     label.setStyleSheet(f"color: {text_color};")
 
@@ -738,12 +808,16 @@ class MainWindow(QMainWindow):
             # Extract the Vehicle number from the tab name
             vehicle_number = int(tab_name.split()[-1])
             # Get the scroll area for this Vehicle's console log
-            scroll_area = getattr(self, f"vehicle{vehicle_number}_console_scroll_area", None)
+            scroll_area = getattr(
+                self, f"vehicle{vehicle_number}_console_scroll_area", None
+            )
             if scroll_area:
                 # Process any pending events to ensure the layout is up to date
                 QApplication.processEvents()
                 # Scroll the vertical scrollbar to the maximum (bottom)
-                scroll_area.verticalScrollBar().setValue(scroll_area.verticalScrollBar().maximum())
+                scroll_area.verticalScrollBar().setValue(
+                    scroll_area.verticalScrollBar().maximum()
+                )
 
     def clear_console(self, vehicle_number):
         """
@@ -763,10 +837,10 @@ class MainWindow(QMainWindow):
             self,
             background_color=self.background_color,
             text_color=self.text_color,
-            pop_up_window_style=self.pop_up_window_style
+            pop_up_window_style=self.pop_up_window_style,
         )
 
-        if dlg.exec(): 
+        if dlg.exec():
             try:
                 label = self.findChild(QLabel, f"Console_messages{vehicle_number}")
                 if label:
@@ -775,10 +849,12 @@ class MainWindow(QMainWindow):
                     # Scroll to the bottom of the scroll area only if user was already at the bottom
             except Exception as e:
                 print(f"Exception in clear_console for vehicle{vehicle_number}: {e}")
-        
-        else: 
-            self.recieve_console_update("Clear Console Log Command Canceled", vehicle_number)
-            
+
+        else:
+            self.recieve_console_update(
+                "Clear Console Log Command Canceled", vehicle_number
+            )
+
     def replace_confirm_reject_label(self, confirm_reject_text):
         """
         Updates all confirmation/rejection labels in the GUI with the provided text.
@@ -789,6 +865,7 @@ class MainWindow(QMainWindow):
             label.setText(confirm_reject_text)
 
     "/*Override the resizeEvent method in the sub class*/"
+
     def resizeEvent(self, event):
         """
         Handles window resize events to dynamically adjust the size of tabs and console scroll areas.
@@ -805,7 +882,9 @@ class MainWindow(QMainWindow):
                 scroll_area.setFixedHeight(int(self.height() * 0.2))
             column0_widget = getattr(self, f"vehicle{i}_column0_widget", None)
             if column0_widget:
-                column0_widget.setMaximumWidth(int(self.width() * 0.16))  # 16% of window width
+                column0_widget.setMaximumWidth(
+                    int(self.width() * 0.16)
+                )  # 16% of window width
             column01_widget = getattr(self, f"vehicle{i}_column01_widget", None)
             if column01_widget:
                 column01_widget.setMaximumWidth(int(self.width() * 0.24))
@@ -813,12 +892,14 @@ class MainWindow(QMainWindow):
         super().resizeEvent(event)
 
     "/*resize the tabs according to the width of the window*/"
+
     def repaintTabs(self, width_px):
         """
         Sets the stylesheet for tab width and appearance based on the current window size and theme.
         Ensures tabs are visually consistent and responsive to resizing.
         """
-        self.tabs.setStyleSheet(f"""
+        self.tabs.setStyleSheet(
+            f"""
         QTabBar::tab {{
             height: 30px;
             width: {width_px - 15}px;
@@ -834,7 +915,8 @@ class MainWindow(QMainWindow):
             border: 2px solid {self.selected_tab_text_color}; 
             font-weight: bold;
         }}
-        """)
+        """
+        )
 
     def set_background(self, widget, color):
         """
@@ -855,19 +937,26 @@ class MainWindow(QMainWindow):
         Updates the confirmation/rejection label and console log with status messages.
         """
         # Open dialog for selecting mission files
-        dlg = LoadMissionsDialog(parent=self, background_color=self.background_color, text_color=self.text_color, pop_up_window_style=self.pop_up_window_style, selected_vehicles=self.selected_vehicles)
-        i=0
+        dlg = LoadMissionsDialog(
+            parent=self,
+            background_color=self.background_color,
+            text_color=self.text_color,
+            pop_up_window_style=self.pop_up_window_style,
+            selected_vehicles=self.selected_vehicles,
+        )
+        i = 0
         for vehicle in self.selected_vehicles:
             if dlg.exec():
                 start_config = dlg.get_states()
-                selected_files = list(start_config['selected_files'].values())
+                selected_files = list(start_config["selected_files"].values())
                 msg.mission_path = String(data=selected_files[i])
                 self.ros_node.load_mission_client.call_async(msg)
-                i+=1
+                i += 1
 
             else:
                 err_msg = "Mission Loading command was cancelled."
-                for i in self.selected_vehicles: self.recieve_console_update(err_msg, i)
+                for i in self.selected_vehicles:
+                    self.recieve_console_update(err_msg, i)
                 self.replace_confirm_reject_label(err_msg)
 
     def start_missions_button(self):
@@ -877,7 +966,8 @@ class MainWindow(QMainWindow):
         Updates the confirmation/rejection label and console log with status messages.
         """
         self.replace_confirm_reject_label("Starting all missions...")
-        for i in self.selected_vehicles: self.recieve_console_update("Starting the missions...", i)
+        for i in self.selected_vehicles:
+            self.recieve_console_update("Starting the missions...", i)
 
         def deploy_in_thread(start_config):
             try:
@@ -885,7 +975,7 @@ class MainWindow(QMainWindow):
                     msg = Init.Request()
                     msg.header = Header()
                     msg.header.stamp = self.ros_node.get_clock().now().to_msg()
-                    msg.header.frame_id = 'system_status_input'
+                    msg.header.frame_id = "system_status_input"
                     msg.vehicle_id = vehicle
                     msg.start = Bool(data=start_config["start_node"])
                     msg.rosbag_flag = Bool(data=start_config["record_rosbag"])
@@ -894,14 +984,23 @@ class MainWindow(QMainWindow):
                     msg.dvl_acoustics = Bool(data=start_config["start_dvl"])
                     if self.ros_node.init_client.wait_for_service(timeout_sec=1.0):
                         future = self.ros_node.init_client.call_async(msg)
+
                         def on_result(fut):
                             if fut.result() is not None:
-                                self.update_console_signal.emit("Init command initiated successfully.", vehicle)
+                                self.update_console_signal.emit(
+                                    "Init command initiated successfully.", vehicle
+                                )
                             else:
-                                self.update_console_signal.emit("Failed to send init command.", vehicle)
+                                self.update_console_signal.emit(
+                                    "Failed to send init command.", vehicle
+                                )
+
                         future.add_done_callback(on_result)
                     else:
-                        self.update_console_signal.emit(f"Init service for vehicle {vehicle} not available.", vehicle)
+                        self.update_console_signal.emit(
+                            f"Init service for vehicle {vehicle} not available.",
+                            vehicle,
+                        )
             except Exception as e:
                 err_msg = f"Mission starting failed: {e}"
                 self.update_console_signal.emit(err_msg, 0)
@@ -910,14 +1009,30 @@ class MainWindow(QMainWindow):
                     self.recieve_console_update(err_msg, i)
 
         # Open dialog for mission start configuration
-        options = ["Start the node", "Record rosbag", "Enter rosbag prefix (string): ", "Arm Thruster", "Start DVL"]
-        dlg = StartMissionsDialog(options, parent=self, passed_option_map=self.option_map, background_color=self.background_color, text_color=self.text_color, pop_up_window_style=self.pop_up_window_style)
+        options = [
+            "Start the node",
+            "Record rosbag",
+            "Enter rosbag prefix (string): ",
+            "Arm Thruster",
+            "Start DVL",
+        ]
+        dlg = StartMissionsDialog(
+            options,
+            parent=self,
+            passed_option_map=self.option_map,
+            background_color=self.background_color,
+            text_color=self.text_color,
+            pop_up_window_style=self.pop_up_window_style,
+        )
         if dlg.exec():
             start_config = dlg.get_states()
-            threading.Thread(target=deploy_in_thread, args=(start_config,), daemon=True).start()
+            threading.Thread(
+                target=deploy_in_thread, args=(start_config,), daemon=True
+            ).start()
         else:
             err_msg = "Starting All Missions command was cancelled."
-            for i in self.selected_vehicles: self.recieve_console_update(err_msg, i)
+            for i in self.selected_vehicles:
+                self.recieve_console_update(err_msg, i)
             self.replace_confirm_reject_label(err_msg)
 
     def spec_load_missions_button(self, vehicle_number):
@@ -935,7 +1050,13 @@ class MainWindow(QMainWindow):
         self.replace_confirm_reject_label(msg)
         self.recieve_console_update(msg, vehicle_number)
 
-        dlg = LoadMissionsDialog(parent=self, background_color=self.background_color, text_color=self.text_color, pop_up_window_style=self.pop_up_window_style, selected_vehicles=[vehicle_number])
+        dlg = LoadMissionsDialog(
+            parent=self,
+            background_color=self.background_color,
+            text_color=self.text_color,
+            pop_up_window_style=self.pop_up_window_style,
+            selected_vehicles=[vehicle_number],
+        )
         if dlg.exec():
             start_config = dlg.get_states()
             msg = LoadMission.Request()
@@ -950,17 +1071,22 @@ class MainWindow(QMainWindow):
 
         else:
             err_msg = "Mission Loading command was cancelled."
-            for i in self.selected_vehicles: self.recieve_console_update(err_msg, i)
+            for i in self.selected_vehicles:
+                self.recieve_console_update(err_msg, i)
             self.replace_confirm_reject_label(err_msg)
-                
+
     def spec_start_missions_button(self, vehicle_number):
         """
         Handler for the 'Start Mission' button on a specific Vehicle tab.
         Opens a dialog for configuring mission start options for the vehicle, then calls the startup function in a background thread.
         Updates the confirmation/rejection label and console log with status messages.
         """
-        self.replace_confirm_reject_label(f"Starting Vehicle {vehicle_number} mission...")
-        self.recieve_console_update(f"Starting Vehicle {vehicle_number} mission...", vehicle_number)
+        self.replace_confirm_reject_label(
+            f"Starting Vehicle {vehicle_number} mission..."
+        )
+        self.recieve_console_update(
+            f"Starting Vehicle {vehicle_number} mission...", vehicle_number
+        )
 
         def deploy_in_thread(start_config):
             try:
@@ -968,7 +1094,7 @@ class MainWindow(QMainWindow):
                 msg = Init.Request()
                 msg.header = Header()
                 msg.header.stamp = self.ros_node.get_clock().now().to_msg()
-                msg.header.frame_id = 'system_status_input'
+                msg.header.frame_id = "system_status_input"
                 msg.vehicle_id = vehicle_number
                 msg.start = Bool(data=start_config["start_node"])
                 msg.rosbag_flag = Bool(data=start_config["record_rosbag"])
@@ -977,14 +1103,23 @@ class MainWindow(QMainWindow):
                 msg.dvl_acoustics = Bool(data=start_config["start_dvl"])
                 if self.ros_node.init_client.wait_for_service(timeout_sec=1.0):
                     future = self.ros_node.init_client.call_async(msg)
+
                     def on_result(fut):
                         if fut.result() is not None:
-                            self.update_console_signal.emit("Init command initiated successfully.", vehicle_number)
+                            self.update_console_signal.emit(
+                                "Init command initiated successfully.", vehicle_number
+                            )
                         else:
-                            self.update_console_signal.emit("Failed to send init command.", vehicle_number)
+                            self.update_console_signal.emit(
+                                "Failed to send init command.", vehicle_number
+                            )
+
                     future.add_done_callback(on_result)
                 else:
-                    self.update_console_signal.emit(f"Init service for vehicle {vehicle_number} not available.", vehicle_number)
+                    self.update_console_signal.emit(
+                        f"Init service for vehicle {vehicle_number} not available.",
+                        vehicle_number,
+                    )
             except Exception as e:
                 err_msg = f"Mission starting failed: {e}"
                 print(err_msg)
@@ -993,16 +1128,26 @@ class MainWindow(QMainWindow):
 
         # Open dialog for mission start configuration
         options = list(self.option_map.keys())
-        dlg = StartMissionsDialog(options, parent=self, passed_option_map=self.option_map, vehicle=vehicle_number, background_color=self.background_color, text_color=self.text_color, pop_up_window_style=self.pop_up_window_style)
+        dlg = StartMissionsDialog(
+            options,
+            parent=self,
+            passed_option_map=self.option_map,
+            vehicle=vehicle_number,
+            background_color=self.background_color,
+            text_color=self.text_color,
+            pop_up_window_style=self.pop_up_window_style,
+        )
         if dlg.exec():
             start_config = dlg.get_states()
-            threading.Thread(target=deploy_in_thread, args=(start_config,), daemon=True).start()
+            threading.Thread(
+                target=deploy_in_thread, args=(start_config,), daemon=True
+            ).start()
         else:
             err_msg = f"Starting Vehicle{vehicle_number} Mission command was cancelled."
             self.recieve_console_update(err_msg, vehicle_number)
             self.replace_confirm_reject_label(err_msg)
 
-    def load_waypoint_button(self): 
+    def load_waypoint_button(self):
         """
         Handler for the 'Plot Waypoints' button on the general tab.
         Launches the waypoint planner application in a separate process to avoid GUI conflicts.
@@ -1010,7 +1155,8 @@ class MainWindow(QMainWindow):
         """
         msg = f"Loading waypoint planner on general page..."
         self.replace_confirm_reject_label(msg)
-        for i in self.selected_vehicles: self.recieve_console_update(msg, i)
+        for i in self.selected_vehicles:
+            self.recieve_console_update(msg, i)
 
         def run_waypoint_planner():
             root = tkinter.Tk()
@@ -1026,7 +1172,8 @@ class MainWindow(QMainWindow):
             if not p.is_alive():
                 msg = "Waypoint planner closed successfully"
                 self.replace_confirm_reject_label(msg)
-                for i in self.selected_vehicles: self.recieve_console_update(msg, i)
+                for i in self.selected_vehicles:
+                    self.recieve_console_update(msg, i)
             else:
                 QTimer.singleShot(500, check_planner_closed)  # check again in 0.5s
 
@@ -1040,9 +1187,9 @@ class MainWindow(QMainWindow):
         """
         msg = "Starting bag sync for all vehicles..."
         self.replace_confirm_reject_label(msg)
-        for i in self.selected_vehicles: 
+        for i in self.selected_vehicles:
             self.recieve_console_update(msg, i)
-            threading.Thread(target=self.run_sync_bags, args=(i,), daemon=True).start()  
+            threading.Thread(target=self.run_sync_bags, args=(i,), daemon=True).start()
 
     def spec_copy_bags(self, vehicle_number):
         """
@@ -1054,22 +1201,30 @@ class MainWindow(QMainWindow):
         self.replace_confirm_reject_label(msg)
         self.recieve_console_update(msg, vehicle_number)
         # Run the sync operation in a separate thread to avoid blocking the GUI
-        threading.Thread(target=self.run_sync_bags, args=(vehicle_number,), daemon=True).start()  
+        threading.Thread(
+            target=self.run_sync_bags, args=(vehicle_number,), daemon=True
+        ).start()
 
     def run_calibrate_script(self, vehicle_number):
         """
         Runs the vehicle calibration script in a separate thread.
         Used for calibrating all vehicles or a specific vehicle.
         """
-        threading.Thread(target=self.run_calibrate_script_threaded, args=(vehicle_number,), daemon=True).start()
+        threading.Thread(
+            target=self.run_calibrate_script_threaded,
+            args=(vehicle_number,),
+            daemon=True,
+        ).start()
 
     def run_calibrate_script_threaded(self, vehicle_number):
         """
         Threaded function to run the vehicle calibration script.
         Calls the calibrate.main function with the appropriate vehicle list.
         """
-        if not vehicle_number: vehicles = self.selected_vehicles
-        else: vehicles = [vehicle_number]
+        if not vehicle_number:
+            vehicles = self.selected_vehicles
+        else:
+            vehicles = [vehicle_number]
         calibrate.main(self.ros_node, vehicles)
 
     def sftp_get_dir(self, sftp, remote_dir, local_dir, vehicle_number):
@@ -1086,9 +1241,11 @@ class MainWindow(QMainWindow):
                 try:
                     sftp.get(remote_path, local_path)
                 except Exception as e:
-                    self.recieve_console_update(f"Failed to copy {remote_path}: {e}", vehicle_number)
+                    self.recieve_console_update(
+                        f"Failed to copy {remote_path}: {e}", vehicle_number
+                    )
 
-    #used by copy bags
+    # used by copy bags
     def run_sync_bags(self, vehicle_number):
         """
         Uses paramiko to sync bag files from the specified vehicle.
@@ -1109,11 +1266,16 @@ class MainWindow(QMainWindow):
 
             # Set up SSH client
             ssh = self.get_ssh_connection(ip_address, remote_user)
-            self.recieve_console_update(f"Connected to Vehicle {vehicle_number} via SSH", vehicle_number)
+            self.recieve_console_update(
+                f"Connected to Vehicle {vehicle_number} via SSH", vehicle_number
+            )
             # Set up SFTP client
             sftp = ssh.open_sftp()
             file_list = sftp.listdir(remote_folder)
-            self.recieve_console_update(f"Found {len(file_list)} bag files to sync for Vehicle {vehicle_number}", vehicle_number)
+            self.recieve_console_update(
+                f"Found {len(file_list)} bag files to sync for Vehicle {vehicle_number}",
+                vehicle_number,
+            )
             i = 0
             for dirname in file_list:
                 remote_path = os.path.join(remote_folder, dirname)
@@ -1125,12 +1287,16 @@ class MainWindow(QMainWindow):
                     else:
                         sftp.get(remote_path, local_path)
                 except Exception as e:
-                    self.recieve_console_update(f"Failed to copy {remote_path}: {e}", vehicle_number)
+                    self.recieve_console_update(
+                        f"Failed to copy {remote_path}: {e}", vehicle_number
+                    )
                 msg = f"Copied {i + 1}/{len(file_list)} bags from Vehicle {vehicle_number}"
                 self.recieve_console_update(msg, vehicle_number)
                 i += 1
 
-            success_msg = f"Bag sync completed successfully for Vehicle {vehicle_number}"
+            success_msg = (
+                f"Bag sync completed successfully for Vehicle {vehicle_number}"
+            )
             self.replace_confirm_reject_label(success_msg)
             self.recieve_console_update(success_msg, vehicle_number)
 
@@ -1147,14 +1313,23 @@ class MainWindow(QMainWindow):
             return ssh
         except (paramiko.AuthenticationException, paramiko.SSHException):
             # Run ssh-copy-id to add the key
-            self.recieve_console_update(f"SSH Authentication failed for {ip_address}. Attempting to copy SSH key. Enter password in the terminal", 0)
+            self.recieve_console_update(
+                f"SSH Authentication failed for {ip_address}. Attempting to copy SSH key. Enter password in the terminal",
+                0,
+            )
             try:
                 if self.ensure_ssh_key():
-                    subprocess.run(["ssh-copy-id", f"{remote_user}@{ip_address}"], check=True)
-                    self.recieve_console_update(f"SSH key copied successfully to {ip_address}.", 0)
+                    subprocess.run(
+                        ["ssh-copy-id", f"{remote_user}@{ip_address}"], check=True
+                    )
+                    self.recieve_console_update(
+                        f"SSH key copied successfully to {ip_address}.", 0
+                    )
                     return self.get_ssh_connection(ip_address, remote_user)
             except subprocess.CalledProcessError as e:
-                self.recieve_console_update(f"Failed to copy SSH key to {ip_address}: {e}", 0)
+                self.recieve_console_update(
+                    f"Failed to copy SSH key to {ip_address}: {e}", 0
+                )
         except Exception as e:
             self.recieve_console_update(f"Failed to connect to {ip_address}: {e}", 0)
             return None
@@ -1167,7 +1342,10 @@ class MainWindow(QMainWindow):
             return True  # SSH key exists
         else:
             # Generate a new SSH key with ssh-keygen
-            subprocess.run(["ssh-keygen", "-t", "rsa", "-b", "4096", "-f", key_path, "-N", ""], check=True)
+            subprocess.run(
+                ["ssh-keygen", "-t", "rsa", "-b", "4096", "-f", key_path, "-N", ""],
+                check=True,
+            )
             return os.path.exists(key_path) and os.path.exists(pub_key_path)
 
     def load_vehicle_kinematics_params(self, vehicle_num):
@@ -1180,7 +1358,9 @@ class MainWindow(QMainWindow):
         base_kinematics = None
 
         # Try to get the params path from the vehicle
-        config_path = str(Path.home()) + "/base_station/mission_control/deploy_config.json"
+        config_path = (
+            str(Path.home()) + "/base_station/mission_control/deploy_config.json"
+        )
         with open(config_path, "r") as f:
             config = json.load(f)
         vehicles = config["vehicles"]
@@ -1200,9 +1380,13 @@ class MainWindow(QMainWindow):
                     data = yaml.safe_load(file_content)
                     vehicle_key = f"coug{vehicle_num}"
                     try:
-                        vehicle_kinematics = data[vehicle_key]['coug_kinematics']['ros__parameters']
+                        vehicle_kinematics = data[vehicle_key]["coug_kinematics"][
+                            "ros__parameters"
+                        ]
                     except KeyError:
-                        self.replace_confirm_reject_label(f"Could not find kinematics in remote file for coug{vehicle_num}")
+                        self.replace_confirm_reject_label(
+                            f"Could not find kinematics in remote file for coug{vehicle_num}"
+                        )
                 sftp.close()
                 ssh.close()
             except Exception as e:
@@ -1211,17 +1395,19 @@ class MainWindow(QMainWindow):
         # If can't get params from vehicle, fallback to local
         params_path = f"/home/frostlab/base_station/mission_control/params/coug{vehicle_num}_params.yaml"
         if os.path.exists(params_path):
-            with open(params_path, 'r') as f:
+            with open(params_path, "r") as f:
                 data = yaml.safe_load(f)
             vehicle_key = f"coug{vehicle_num}"
             try:
-                base_kinematics = data[vehicle_key]['coug_kinematics']['ros__parameters']
+                base_kinematics = data[vehicle_key]["coug_kinematics"][
+                    "ros__parameters"
+                ]
             except KeyError:
                 base_kinematics = None
 
         return vehicle_kinematics, base_kinematics
 
-    def create_new_param_file(self, vehicle_num): 
+    def create_new_param_file(self, vehicle_num):
         """
         Creates a new parameter YAML file for the given vehicle number by copying the template
         from config/vehicle_params.yaml and replacing 'coug0' with 'coug{vehicle_num}'.
@@ -1231,7 +1417,9 @@ class MainWindow(QMainWindow):
             vehicle_num (int): Vehicle number to create the param file for.
         """
 
-        template_path = os.path.expanduser("~/base_station/mission_control/params/vehicle_params.yaml")
+        template_path = os.path.expanduser(
+            "~/base_station/mission_control/params/vehicle_params.yaml"
+        )
         params_dir = os.path.expanduser("~/base_station/mission_control/params")
 
         os.makedirs(params_dir, exist_ok=True)
@@ -1250,7 +1438,7 @@ class MainWindow(QMainWindow):
         msg = f"Created new param file for Vehicle {vehicle_num} at {new_param_path}"
         self.recieve_console_update(msg, vehicle_num)
 
-    def save_param_file(self, vehicle_num, fin_list): 
+    def save_param_file(self, vehicle_num, fin_list):
         """
         Saves updated fin calibration parameters to the local YAML file for the given vehicle.
         Replaces the top, right, and left fin offsets in the file using regex.
@@ -1268,9 +1456,21 @@ class MainWindow(QMainWindow):
             content = f.read()
 
         # Replace the offsets using regex to match any value
-        content = re.sub(r'(top_fin_offset:\s*)(-?\d+\.?\d*)', r'\g<1>{}'.format(float(fin_list[0])), content)
-        content = re.sub(r'(right_fin_offset:\s*)(-?\d+\.?\d*)', r'\g<1>{}'.format(float(fin_list[1])), content)
-        content = re.sub(r'(left_fin_offset:\s*)(-?\d+\.?\d*)', r'\g<1>{}'.format(float(fin_list[2])), content)
+        content = re.sub(
+            r"(top_fin_offset:\s*)(-?\d+\.?\d*)",
+            r"\g<1>{}".format(float(fin_list[0])),
+            content,
+        )
+        content = re.sub(
+            r"(right_fin_offset:\s*)(-?\d+\.?\d*)",
+            r"\g<1>{}".format(float(fin_list[1])),
+            content,
+        )
+        content = re.sub(
+            r"(left_fin_offset:\s*)(-?\d+\.?\d*)",
+            r"\g<1>{}".format(float(fin_list[2])),
+            content,
+        )
 
         # Write the updated content back to the file
         with open(params_path, "w") as f:
@@ -1287,12 +1487,17 @@ class MainWindow(QMainWindow):
             message="Loading fin \ncalibration data...",
             parent=self,
             background_color=self.background_color,
-            text_color=self.text_color
+            text_color=self.text_color,
         )
         loading_dialog.show()
         QApplication.processEvents()  # Ensure it appears immediately
 
-        def after_worker(vehicle_params_dict, params_found_dict, base_params_problems, vehicle_params_problems):
+        def after_worker(
+            vehicle_params_dict,
+            params_found_dict,
+            base_params_problems,
+            vehicle_params_problems,
+        ):
             loading_dialog.close()
             # Show warnings if any params files are missing or have errors
             if base_params_problems or vehicle_params_problems:
@@ -1306,9 +1511,12 @@ class MainWindow(QMainWindow):
                         f"The following base station params files weren't found or had errors (if not found they were created): {base_params_problems}"
                     )
                 warning_msg = "\n".join(warning_lines)
-                QTimer.singleShot(0, lambda: QMessageBox.warning(
-                    self, "Params File Warning", warning_msg
-                ))
+                QTimer.singleShot(
+                    0,
+                    lambda: QMessageBox.warning(
+                        self, "Params File Warning", warning_msg
+                    ),
+                )
 
             def publish_fins(vehicle_num, fins, pub_type):
                 fins_out = [float(f) for f in fins]
@@ -1326,32 +1534,43 @@ class MainWindow(QMainWindow):
                 selected_vehicles=self.selected_vehicles,
                 passed_ros_node=self.ros_node,
                 on_slider_change=publish_fins,
-                vehicle_init_params=vehicle_params_dict
+                vehicle_init_params=vehicle_params_dict,
             )
 
             if dlg.exec():
                 fin_states = dlg.get_states()
                 for key, states in fin_states.items():
                     self.save_param_file(key, states)
-                    self.ros_node.set_single_parameter("top_fin_offset", float(states[0]), key)
-                    self.ros_node.set_single_parameter("right_fin_offset", float(states[1]), key)
-                    self.ros_node.set_single_parameter("left_fin_offset", float(states[2]), key)
+                    self.ros_node.set_single_parameter(
+                        "top_fin_offset", float(states[0]), key
+                    )
+                    self.ros_node.set_single_parameter(
+                        "right_fin_offset", float(states[1]), key
+                    )
+                    self.ros_node.set_single_parameter(
+                        "left_fin_offset", float(states[2]), key
+                    )
 
-                    self.recieve_console_update("Vehicle Kinematics param set", int(key))
-                    self.recieve_console_update("Fin Calibration Saved to Params", int(key))
+                    self.recieve_console_update(
+                        "Vehicle Kinematics param set", int(key)
+                    )
+                    self.recieve_console_update(
+                        "Fin Calibration Saved to Params", int(key)
+                    )
             else:
-                for i in self.selected_vehicles: self.recieve_console_update("Canceling Fin Calibration", i)
+                for i in self.selected_vehicles:
+                    self.recieve_console_update("Canceling Fin Calibration", i)
 
         # Start worker thread to load parameters
         self.cal_fins_worker = CalibrateFinsWorker(
             self.selected_vehicles,
             self.load_vehicle_kinematics_params,
-            self.create_new_param_file
+            self.create_new_param_file,
         )
         self.cal_fins_worker.finished.connect(after_worker)
         self.cal_fins_worker.start()
 
-    #Connected to the "kill" signal
+    # Connected to the "kill" signal
     def emergency_shutdown_button(self, vehicle_number):
         """
         Handler for 'Emergency Shutdown' button, with confirmation dialog.
@@ -1360,19 +1579,38 @@ class MainWindow(QMainWindow):
         """
         message = BeaconId.Request()
         message.beacon_id = vehicle_number
-        dlg = ConfirmationDialog("Emergency Shutdown?", "Are you sure you want to initiate emergency shutdown?", self, background_color=self.background_color, text_color=self.text_color, pop_up_window_style=self.pop_up_window_style)
+        dlg = ConfirmationDialog(
+            "Emergency Shutdown?",
+            "Are you sure you want to initiate emergency shutdown?",
+            self,
+            background_color=self.background_color,
+            text_color=self.text_color,
+            pop_up_window_style=self.pop_up_window_style,
+        )
         if dlg.exec():
             self.replace_confirm_reject_label("Starting Emergency Shutdown...")
-            self.recieve_console_update(f"Starting Emergency Shutdown for Vehicle {vehicle_number}", vehicle_number)
+            self.recieve_console_update(
+                f"Starting Emergency Shutdown for Vehicle {vehicle_number}",
+                vehicle_number,
+            )
             future = self.ros_node.cli.call_async(message)
             # Add callback to handle response
-            future.add_done_callback(partial(self.handle_service_response, action="Emergency Shutdown", vehicle_number=vehicle_number))
+            future.add_done_callback(
+                partial(
+                    self.handle_service_response,
+                    action="Emergency Shutdown",
+                    vehicle_number=vehicle_number,
+                )
+            )
             return future
         else:
             self.replace_confirm_reject_label("Canceling Emergency Shutdown command...")
-            self.recieve_console_update(f"Canceling Emergency Shutdown for Vehicle {vehicle_number}", vehicle_number)
+            self.recieve_console_update(
+                f"Canceling Emergency Shutdown for Vehicle {vehicle_number}",
+                vehicle_number,
+            )
 
-    #Connected to the "surface" signal
+    # Connected to the "surface" signal
     def emergency_surface_button(self, vehicle_number):
         """
         Handler for 'Emergency Surface' button, with confirmation dialog.
@@ -1381,19 +1619,38 @@ class MainWindow(QMainWindow):
         """
         message = BeaconId.Request()
         message.beacon_id = vehicle_number
-        dlg = ConfirmationDialog("Emergency Surface?", "Are you sure you want to initiate emergency surface?", self, background_color=self.background_color, text_color=self.text_color, pop_up_window_style=self.pop_up_window_style)
+        dlg = ConfirmationDialog(
+            "Emergency Surface?",
+            "Are you sure you want to initiate emergency surface?",
+            self,
+            background_color=self.background_color,
+            text_color=self.text_color,
+            pop_up_window_style=self.pop_up_window_style,
+        )
         if dlg.exec():
             self.replace_confirm_reject_label("Starting Emergency Surface...")
-            self.recieve_console_update(f"Starting Emergency Surface for Vehicle {vehicle_number}", vehicle_number)
+            self.recieve_console_update(
+                f"Starting Emergency Surface for Vehicle {vehicle_number}",
+                vehicle_number,
+            )
             future = self.ros_node.cli2.call_async(message)
             # Add callback to handle response
-            future.add_done_callback(partial(self.handle_service_response, action="Emergency Surface", vehicle_number=vehicle_number))
+            future.add_done_callback(
+                partial(
+                    self.handle_service_response,
+                    action="Emergency Surface",
+                    vehicle_number=vehicle_number,
+                )
+            )
             return future
         else:
             self.replace_confirm_reject_label("Canceling Emergency Surface command...")
-            self.recieve_console_update(f"Canceling Emergency Surface for Vehicle {vehicle_number}", vehicle_number)
+            self.recieve_console_update(
+                f"Canceling Emergency Surface for Vehicle {vehicle_number}",
+                vehicle_number,
+            )
 
-    #Connected to the "ModemControl" service in base_station_interfaces
+    # Connected to the "ModemControl" service in base_station_interfaces
     # def modem_shut_off_service(self, shutoff:bool, vehicle_id:int):
     #     """
     #     Handler for modem shut off/on service.
@@ -1408,7 +1665,7 @@ class MainWindow(QMainWindow):
     #     message.vehicle_id = vehicle_id
     #     if shutoff: self.replace_confirm_reject_label("Wifi Connected, Shutting Off Modem")
     #     else: self.replace_confirm_reject_label("Wifi Disconnected, Turning On Modem")
-        
+
     #     if shutoff: self.recieve_console_update(f"Wifi Connected, Shutting Off Modem", vehicle_id)
     #     else: self.recieve_console_update(f"Wifi Disconnected, Turning On Modem", vehicle_id)
 
@@ -1417,7 +1674,7 @@ class MainWindow(QMainWindow):
     #     future.add_done_callback(partial(self.handle_service_response, action="Modem Shut off Service", vehicle_number=vehicle_id)) #0->for all vehicles
     #     return future
 
-    #used by various buttons to handle services dynamically
+    # used by various buttons to handle services dynamically
     def handle_service_response(self, future, action, vehicle_number):
         """
         Handles the result of an asynchronous ROS service call.
@@ -1445,28 +1702,45 @@ class MainWindow(QMainWindow):
                         self.recieve_console_update(message, i)
                 elif vehicle_number in self.selected_vehicles:
                     self.recieve_console_update(message, vehicle_number)
-       
+
         except Exception as e:
             self.replace_confirm_reject_label(f"{action} service call failed: {e}")
-            if vehicle_number in self.selected_vehicles: self.recieve_console_update(f"{action} service call failed: {e}", vehicle_number)
-            else: print(f"{action} service call failed: {e}")
+            if vehicle_number in self.selected_vehicles:
+                self.recieve_console_update(
+                    f"{action} service call failed: {e}", vehicle_number
+                )
+            else:
+                print(f"{action} service call failed: {e}")
 
-    #(No Signal) -> not yet connected to a signal
+    # (No Signal) -> not yet connected to a signal
     def recall_vehicles(self):
         """
         Handler for 'Recall Vehicles' button on the general tab, with confirmation dialog.
         Aborts all missions for all selected vehicles if confirmed.
         Updates the confirmation/rejection label and console log.
         """
-        dlg = ConfirmationDialog("Recall Vehicles?", "Are you sure that you want recall the Vehicles? This will abort all the missions, and cannot be undone.", self, background_color=self.background_color, text_color=self.text_color, pop_up_window_style=self.pop_up_window_style)
+        dlg = ConfirmationDialog(
+            "Recall Vehicles?",
+            "Are you sure that you want recall the Vehicles? This will abort all the missions, and cannot be undone.",
+            self,
+            background_color=self.background_color,
+            text_color=self.text_color,
+            pop_up_window_style=self.pop_up_window_style,
+        )
         if dlg.exec():
             self.replace_confirm_reject_label("Recalling the Vehicles...")
-            for i in self.selected_vehicles: self.recieve_console_update("Recalling the Vehicles...", i)
+            for i in self.selected_vehicles:
+                self.recieve_console_update("Recalling the Vehicles...", i)
         else:
-            self.replace_confirm_reject_label("Canceling Recall All Vehicles Command...")
-            for i in self.selected_vehicles: self.recieve_console_update("Canceling Recall All Vehicles Command...", i)
-    
-    #(No Signal) -> not yet connected to a signal
+            self.replace_confirm_reject_label(
+                "Canceling Recall All Vehicles Command..."
+            )
+            for i in self.selected_vehicles:
+                self.recieve_console_update(
+                    "Canceling Recall All Vehicles Command...", i
+                )
+
+    # (No Signal) -> not yet connected to a signal
     def recall_spec_vehicle(self, vehicle_number):
         """
         Handler for 'Recall Vehicle' button on a specific Vehicle tab, with confirmation dialog.
@@ -1475,13 +1749,24 @@ class MainWindow(QMainWindow):
         Parameters:
             vehicle_number (int): Vehicle number to recall.
         """
-        dlg = ConfirmationDialog("Recall Vehicle?", "Are you sure that you want to recall this Vehicle?", self, background_color=self.background_color, text_color=self.text_color, pop_up_window_style=self.pop_up_window_style)
+        dlg = ConfirmationDialog(
+            "Recall Vehicle?",
+            "Are you sure that you want to recall this Vehicle?",
+            self,
+            background_color=self.background_color,
+            text_color=self.text_color,
+            pop_up_window_style=self.pop_up_window_style,
+        )
         if dlg.exec():
             self.replace_confirm_reject_label(f"Recalling Vehicle {vehicle_number}...")
-            self.recieve_console_update(f"Recalling Vehicle {vehicle_number}...", vehicle_number)
+            self.recieve_console_update(
+                f"Recalling Vehicle {vehicle_number}...", vehicle_number
+            )
         else:
             self.replace_confirm_reject_label("Canceling Recall Vehicle Command...")
-            self.recieve_console_update(f"Canceling Recall Vehicle {vehicle_number} Command...", vehicle_number)
+            self.recieve_console_update(
+                f"Canceling Recall Vehicle {vehicle_number} Command...", vehicle_number
+            )
 
     def make_vline(self):
         """
@@ -1540,7 +1825,9 @@ class MainWindow(QMainWindow):
 
         # Set the widgets for each Vehicle column
         for vehicle_number in self.selected_vehicles:
-            self.set_general_page_C1_widgets(self.general_page_vehicle_layouts[vehicle_number], vehicle_number)
+            self.set_general_page_C1_widgets(
+                self.general_page_vehicle_layouts[vehicle_number], vehicle_number
+            )
 
     def set_general_page_C0_widgets(self):
         """
@@ -1551,47 +1838,55 @@ class MainWindow(QMainWindow):
         general_label = QLabel("General Options:")
         general_label.setFont(QFont("Arial", 17, QFont.Weight.Bold))
         general_label.setStyleSheet(f"color: {self.text_color};")
-        general_label.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
+        general_label.setSizePolicy(
+            QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed
+        )
 
-        #Load All Missions button
+        # Load All Missions button
         self.Load_missions_button = QPushButton("Load All Missions")
         self.Load_missions_button.clicked.connect(self.load_missions_button)
         self.Load_missions_button.setStyleSheet(self.normal_button_style_sheet)
 
-        #Start All Missions button
+        # Start All Missions button
         self.Start_missions_button = QPushButton("Start All Missions")
         self.Start_missions_button.clicked.connect(self.start_missions_button)
         self.Start_missions_button.setStyleSheet(self.normal_button_style_sheet)
 
-        #Plot Waypoints button
+        # Plot Waypoints button
         self.plot_waypoints_button = QPushButton("Plot Waypoints")
         self.plot_waypoints_button.clicked.connect(self.load_waypoint_button)
-        self.plot_waypoints_button.setStyleSheet(self.normal_button_style_sheet)        
-        
-        #Copy Bags to Base Station
+        self.plot_waypoints_button.setStyleSheet(self.normal_button_style_sheet)
+
+        # Copy Bags to Base Station
         self.copy_bags_button = QPushButton("Copy Bags to Base Station")
         self.copy_bags_button.clicked.connect(self.copy_bags)
         self.copy_bags_button.setStyleSheet(self.normal_button_style_sheet)
 
-        #Calibrate All Vehicles 
+        # Calibrate All Vehicles
         self.sync_all_vehicles_button = QPushButton("Calibrate All Vehicles (BUGGY)")
-        self.sync_all_vehicles_button.clicked.connect(lambda: self.run_calibrate_script(0))
+        self.sync_all_vehicles_button.clicked.connect(
+            lambda: self.run_calibrate_script(0)
+        )
         self.sync_all_vehicles_button.setStyleSheet(self.normal_button_style_sheet)
 
-        #Recall all the vehicles button
+        # Recall all the vehicles button
         self.calibrate_fins_button = QPushButton("Calibrate Fins (In Progress)")
         self.calibrate_fins_button.clicked.connect(self.calibrate_fins)
         self.calibrate_fins_button.setStyleSheet(self.normal_button_style_sheet)
 
-        #Recall all the vehicles button
+        # Recall all the vehicles button
         self.recall_all_vehicles = QPushButton("Recall Vehicles (No Signal)")
         self.recall_all_vehicles.clicked.connect(self.recall_vehicles)
         self.recall_all_vehicles.setStyleSheet(self.danger_button_style_sheet)
 
         # Add widgets to the layout
-        self.general_page_C0_layout.addWidget(general_label, alignment=Qt.AlignmentFlag.AlignTop)
+        self.general_page_C0_layout.addWidget(
+            general_label, alignment=Qt.AlignmentFlag.AlignTop
+        )
         self.general_page_C0_layout.addSpacing(20)
-        self.general_page_C0_layout.addWidget(self.Load_missions_button, alignment=Qt.AlignmentFlag.AlignTop)
+        self.general_page_C0_layout.addWidget(
+            self.Load_missions_button, alignment=Qt.AlignmentFlag.AlignTop
+        )
         self.general_page_C0_layout.addSpacing(20)
         self.general_page_C0_layout.addWidget(self.Start_missions_button)
         self.general_page_C0_layout.addSpacing(20)
@@ -1607,12 +1902,14 @@ class MainWindow(QMainWindow):
         # Add spacer to push the rest of the buttons down
         self.general_page_C0_layout.addWidget(self.recall_all_vehicles)
         self.general_page_C0_layout.addSpacing(20)
-        
+
         # Add remaining buttons (red recall vehicles at the bottom)
-        spacer = QSpacerItem(0, 0, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
+        spacer = QSpacerItem(
+            0, 0, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding
+        )
         self.general_page_C0_layout.addItem(spacer)
-            
-    #template to set the rest of widgets on the rest of the columns on the general page
+
+    # template to set the rest of widgets on the rest of the columns on the general page
     def set_general_page_C1_widgets(self, layout, vehicle_number):
         """
         Sets up the widgets for each Vehicle column on the General tab.
@@ -1621,11 +1918,13 @@ class MainWindow(QMainWindow):
         title_label = QLabel(f"Vehicle {vehicle_number}:")
         title_label.setFont(QFont("Arial", 17, QFont.Weight.Bold))
         title_label.setStyleSheet(f"color: {self.text_color};")
-        title_label.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
+        title_label.setSizePolicy(
+            QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed
+        )
         layout.addWidget(title_label, alignment=Qt.AlignmentFlag.AlignTop)
         layout.addSpacing(20)
 
-        #section labels for each column
+        # section labels for each column
         section_titles = ["Connections", "Sensors", "Emergency Status"]
         for title in section_titles:
             label = QLabel(title)
@@ -1633,38 +1932,74 @@ class MainWindow(QMainWindow):
             label.setStyleSheet(f"color: {self.text_color};")
             layout.addWidget(label, alignment=Qt.AlignmentFlag.AlignTop)
             layout.addSpacing(20)
-            #repeated tab_spacing variable used throughout the file, to keep tabs consistent
+            # repeated tab_spacing variable used throughout the file, to keep tabs consistent
             self.tab_spacing = 60
 
-            #The connections section contains the wifi, radio, and modem connections for each Vehicle respectively
-            if title == "Connections": 
-                wifi_widget = self.create_icon_and_text("Wifi", self.icons_dict[self.feedback_dict["Wifi"][vehicle_number]], self.tab_spacing, vehicle_number, 0)
+            # The connections section contains the wifi, radio, and modem connections for each Vehicle respectively
+            if title == "Connections":
+                wifi_widget = self.create_icon_and_text(
+                    "Wifi",
+                    self.icons_dict[self.feedback_dict["Wifi"][vehicle_number]],
+                    self.tab_spacing,
+                    vehicle_number,
+                    0,
+                )
                 layout.addWidget(wifi_widget)
                 layout.addSpacing(20)
 
-                radio_widget = self.create_icon_and_text("Radio", self.icons_dict[self.feedback_dict["Radio"][vehicle_number]], self.tab_spacing, vehicle_number, 0)
+                radio_widget = self.create_icon_and_text(
+                    "Radio",
+                    self.icons_dict[self.feedback_dict["Radio"][vehicle_number]],
+                    self.tab_spacing,
+                    vehicle_number,
+                    0,
+                )
                 layout.addWidget(radio_widget)
                 layout.addSpacing(20)
 
-                modem_widget = self.create_icon_and_text("Modem", self.icons_dict[self.feedback_dict["Modem"][vehicle_number]], self.tab_spacing, vehicle_number, 0)
+                modem_widget = self.create_icon_and_text(
+                    "Modem",
+                    self.icons_dict[self.feedback_dict["Modem"][vehicle_number]],
+                    self.tab_spacing,
+                    vehicle_number,
+                    0,
+                )
                 layout.addWidget(modem_widget)
                 layout.addSpacing(40)
 
-            #The connections section contains the DVL, GPS, and IMU sensors connections for each Vehicle respectively
+            # The connections section contains the DVL, GPS, and IMU sensors connections for each Vehicle respectively
             elif title == "Sensors":
-                DVL_sensor_widget = self.create_icon_and_text("DVL", self.icons_dict[self.feedback_dict["DVL"][vehicle_number]], self.tab_spacing, vehicle_number, 0)
+                DVL_sensor_widget = self.create_icon_and_text(
+                    "DVL",
+                    self.icons_dict[self.feedback_dict["DVL"][vehicle_number]],
+                    self.tab_spacing,
+                    vehicle_number,
+                    0,
+                )
                 layout.addWidget(DVL_sensor_widget)
                 layout.addSpacing(20)
 
-                GPS_sensor_widget = self.create_icon_and_text("GPS", self.icons_dict[self.feedback_dict["GPS"][vehicle_number]], self.tab_spacing, vehicle_number, 0)
+                GPS_sensor_widget = self.create_icon_and_text(
+                    "GPS",
+                    self.icons_dict[self.feedback_dict["GPS"][vehicle_number]],
+                    self.tab_spacing,
+                    vehicle_number,
+                    0,
+                )
                 layout.addWidget(GPS_sensor_widget)
                 layout.addSpacing(20)
-                
-                IMU_sensor_widget = self.create_icon_and_text("IMU", self.icons_dict[self.feedback_dict["IMU"][vehicle_number]], self.tab_spacing, vehicle_number, 0)
+
+                IMU_sensor_widget = self.create_icon_and_text(
+                    "IMU",
+                    self.icons_dict[self.feedback_dict["IMU"][vehicle_number]],
+                    self.tab_spacing,
+                    vehicle_number,
+                    0,
+                )
                 layout.addWidget(IMU_sensor_widget)
                 layout.addSpacing(40)
 
-            #The status section contains the status message for each Vehicle respectively
+            # The status section contains the status message for each Vehicle respectively
             elif title == "Emergency Status":
                 status = "No Data Recieved"
                 label = QLabel(f"{status}", font=QFont("Arial", 13))
@@ -1674,10 +2009,12 @@ class MainWindow(QMainWindow):
                 layout.addSpacing(40)
 
         # Add spacer to push content up
-        spacer = QSpacerItem(0, 0, QSizePolicy .Policy.Minimum, QSizePolicy.Policy.Expanding)
+        spacer = QSpacerItem(
+            0, 0, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding
+        )
         layout.addItem(spacer)
 
-    #This is used to set the widgets on the other tabs, namely Vehicle1, Vehicle2, Vehicle3, etc
+    # This is used to set the widgets on the other tabs, namely Vehicle1, Vehicle2, Vehicle3, etc
     def set_specific_vehicle_widgets(self, vehicle_number):
         """
         Sets up the widgets for a specific Vehicle tab.
@@ -1685,24 +2022,32 @@ class MainWindow(QMainWindow):
         Returns the container widget for the tab.
         """
         temp_container = QWidget()
-        temp_container.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        temp_container.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred
+        )
         temp_layout = QHBoxLayout(temp_container)
         temp_layout.setSpacing(0)
         temp_layout.setContentsMargins(0, 0, 0, 0)
 
-        #col0 contains connections and sensor icons
-        temp_layout.addWidget(self.create_specific_vehicle_column0(vehicle_number), alignment=Qt.AlignmentFlag.AlignTop)
-        #col1 contains mission and vehicle1 status
-        temp_layout.addWidget(self.create_specific_vehicle_column01(vehicle_number), alignment=Qt.AlignmentFlag.AlignTop)
+        # col0 contains connections and sensor icons
+        temp_layout.addWidget(
+            self.create_specific_vehicle_column0(vehicle_number),
+            alignment=Qt.AlignmentFlag.AlignTop,
+        )
+        # col1 contains mission and vehicle1 status
+        temp_layout.addWidget(
+            self.create_specific_vehicle_column01(vehicle_number),
+            alignment=Qt.AlignmentFlag.AlignTop,
+        )
 
-        #vline
+        # vline
         temp_layout.addWidget(self.make_vline())
-        #col2 - seconds since last connected and buttons
+        # col2 - seconds since last connected and buttons
         temp_layout.addWidget(self.create_vehicle_buttons_column(vehicle_number))
         return temp_container
 
-    #The scrolling log at the bottom of the specific vehicle tabs. 
-    def create_specific_vehicle_console_log(self, vehicle_number): 
+    # The scrolling log at the bottom of the specific vehicle tabs.
+    def create_specific_vehicle_console_log(self, vehicle_number):
         """
         Creates the scrollable console log area for a specific Vehicle tab.
         Adds a title label and a message label inside a QScrollArea for displaying log messages.
@@ -1727,16 +2072,23 @@ class MainWindow(QMainWindow):
 
         # Create a QLabel from the message_text for displaying the log
         message_label = QLabel(message_text)
-        message_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse | Qt.TextInteractionFlag.TextSelectableByKeyboard)
-        message_label.setWordWrap(True) # Enable word wrapping for readability
+        message_label.setTextInteractionFlags(
+            Qt.TextInteractionFlag.TextSelectableByMouse
+            | Qt.TextInteractionFlag.TextSelectableByKeyboard
+        )
+        message_label.setWordWrap(True)  # Enable word wrapping for readability
         font = QFont()
-        #second font is for emojis, that aren't available in arial
+        # second font is for emojis, that aren't available in arial
         font.setFamily("Arial, Noto Color Emoji")
         font.setPointSize(13)
         message_label.setFont(font)
-        message_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop) 
+        message_label.setAlignment(
+            Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop
+        )
         message_label.setContentsMargins(0, 0, 0, 0)
-        message_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        message_label.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred
+        )
         message_label.setObjectName(f"Console_messages{vehicle_number}")
 
         # Create a QWidget to hold the message label, and a layout for it
@@ -1759,7 +2111,9 @@ class MainWindow(QMainWindow):
         temp_layout.addWidget(scroll_area)
 
         # Add a spacer to push content up and allow for vertical expansion
-        spacer = QSpacerItem(0, 0, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
+        spacer = QSpacerItem(
+            0, 0, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding
+        )
         temp_layout.addItem(spacer)
 
         # Return the container widget holding the scrollable log
@@ -1794,7 +2148,7 @@ class MainWindow(QMainWindow):
         painter.end()
         return result
 
-    def make_icon_label(self, icon, text, vehicle_number, icon_pg_type): 
+    def make_icon_label(self, icon, text, vehicle_number, icon_pg_type):
         """
         Creates a QLabel for a status icon, sets its pixmap and stores original icon and type.
         Used for displaying connection/sensor status in the GUI.
@@ -1811,8 +2165,8 @@ class MainWindow(QMainWindow):
         icon_label = QLabel()
         icon_pixmap = self.style().standardIcon(icon).pixmap(16, 16)
         icon_label._original_icon_pixmap = icon_pixmap  # Store original
-        icon_label._icon_type = icon # Store the icon type (e.g., QStyle.StandardPixmap.SP_MessageBoxCritical)
-        
+        icon_label._icon_type = icon  # Store the icon type (e.g., QStyle.StandardPixmap.SP_MessageBoxCritical)
+
         if icon == QStyle.StandardPixmap.SP_MessageBoxCritical:
             icon_bkgrnd = self.light_icon_bkgrnd_color
         elif icon == QStyle.StandardPixmap.SP_DialogApplyButton:
@@ -1829,8 +2183,15 @@ class MainWindow(QMainWindow):
         icon_label.setFixedSize(24, 24)
         return icon_label
 
-    #used to create an icon next to text in a pre-determined fashion
-    def create_icon_and_text(self, text, icon=None, temp_tab_spacing=None, vehicle_number=None, icon_pg_type=None):
+    # used to create an icon next to text in a pre-determined fashion
+    def create_icon_and_text(
+        self,
+        text,
+        icon=None,
+        temp_tab_spacing=None,
+        vehicle_number=None,
+        icon_pg_type=None,
+    ):
         """
         Creates a QWidget containing an icon (optional) and a text label, arranged horizontally.
         Used for displaying status with icons and text in the GUI.
@@ -1849,7 +2210,7 @@ class MainWindow(QMainWindow):
         temp_container = QWidget()
         temp_layout = QHBoxLayout(temp_container)
         # If a tab spacing value is provided, set the left margin accordingly
-        if temp_tab_spacing: 
+        if temp_tab_spacing:
             temp_layout.setContentsMargins(temp_tab_spacing, 0, 0, 0)
         temp_layout.setSpacing(20)  # Space between icon and text
         # If an icon is provided, create a QLabel for it and add to the layout
@@ -1866,7 +2227,7 @@ class MainWindow(QMainWindow):
         # Return the container widget with icon and text
         return temp_container
 
-    #used to create the title labels throughout the window
+    # used to create the title labels throughout the window
     def create_title_label(self, text):
         """
         Creates and styles a QLabel for section titles throughout the window.
@@ -1878,7 +2239,7 @@ class MainWindow(QMainWindow):
         temp_label.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
         return temp_label
 
-    #used to create the buttons column on the specific vehicle pages
+    # used to create the buttons column on the specific vehicle pages
     def create_vehicle_buttons_column(self, vehicle_number):
         """
         Creates the button column for a specific Vehicle tab, including mission control and emergency buttons,
@@ -1903,44 +2264,102 @@ class MainWindow(QMainWindow):
         # Temp container for the entire column, the buttons and the last connected labels
         temp_V_container = QWidget()
         temp_V_layout = QVBoxLayout(temp_V_container)
-        setattr(self, f"vehicle{vehicle_number}_buttons_column_widget", temp_V_container)
+        setattr(
+            self, f"vehicle{vehicle_number}_buttons_column_widget", temp_V_container
+        )
         setattr(self, f"vehicle{vehicle_number}_buttons_column_layout", temp_V_layout)
 
         # Load mission (normal button)
-        self.create_vehicle_button(vehicle_number, "load_mission", "Load Mission", lambda: self.spec_load_missions_button(vehicle_number))
+        self.create_vehicle_button(
+            vehicle_number,
+            "load_mission",
+            "Load Mission",
+            lambda: self.spec_load_missions_button(vehicle_number),
+        )
         # Start mission (normal button)
-        self.create_vehicle_button(vehicle_number, "start_mission", "Start Mission", lambda: self.spec_start_missions_button(vehicle_number))
+        self.create_vehicle_button(
+            vehicle_number,
+            "start_mission",
+            "Start Mission",
+            lambda: self.spec_start_missions_button(vehicle_number),
+        )
         # Start mission (normal button)
-        self.create_vehicle_button(vehicle_number, "copy_bag", "Copy Bag to Base Station", lambda: self.spec_copy_bags(vehicle_number))
+        self.create_vehicle_button(
+            vehicle_number,
+            "copy_bag",
+            "Copy Bag to Base Station",
+            lambda: self.spec_copy_bags(vehicle_number),
+        )
         # Sync vehicle (normal button)
-        self.create_vehicle_button(vehicle_number, "sync", "Calibrate Vehicle (BUGGY)", lambda: self.run_calibrate_script(vehicle_number))
+        self.create_vehicle_button(
+            vehicle_number,
+            "sync",
+            "Calibrate Vehicle (BUGGY)",
+            lambda: self.run_calibrate_script(vehicle_number),
+        )
 
         # Emergency surface (danger button)
-        self.create_vehicle_button(vehicle_number, "emergency_surface", "Emergency Surface", lambda: self.emergency_surface_button(vehicle_number), danger=True)
+        self.create_vehicle_button(
+            vehicle_number,
+            "emergency_surface",
+            "Emergency Surface",
+            lambda: self.emergency_surface_button(vehicle_number),
+            danger=True,
+        )
         # Abort mission (danger button)
-        self.create_vehicle_button(vehicle_number, "recall", f"Recall Vehicle (No Signal)", lambda: self.recall_spec_vehicle(vehicle_number), danger=True)
+        self.create_vehicle_button(
+            vehicle_number,
+            "recall",
+            f"Recall Vehicle (No Signal)",
+            lambda: self.recall_spec_vehicle(vehicle_number),
+            danger=True,
+        )
         # Emergency shutdown (danger button)
-        self.create_vehicle_button(vehicle_number, "emergency_shutdown", "Emergency Shutdown", lambda: self.emergency_shutdown_button(vehicle_number), danger=True)
+        self.create_vehicle_button(
+            vehicle_number,
+            "emergency_shutdown",
+            "Emergency Shutdown",
+            lambda: self.emergency_shutdown_button(vehicle_number),
+            danger=True,
+        )
         # Clear console (danger button)
-        self.create_vehicle_button(vehicle_number, "clear_console", "Clear Console", lambda: self.clear_console(vehicle_number), danger=True)
+        self.create_vehicle_button(
+            vehicle_number,
+            "clear_console",
+            "Clear Console",
+            lambda: self.clear_console(vehicle_number),
+            danger=True,
+        )
 
         temp_spacing = 20
         # Add buttons to the first and second sub-columns with spacing
-        temp_layout1.addWidget(getattr(self, f"load_mission_vehicle{vehicle_number}_button"))
+        temp_layout1.addWidget(
+            getattr(self, f"load_mission_vehicle{vehicle_number}_button")
+        )
         temp_layout1.addSpacing(temp_spacing)
-        temp_layout1.addWidget(getattr(self, f"start_mission_vehicle{vehicle_number}_button"))
+        temp_layout1.addWidget(
+            getattr(self, f"start_mission_vehicle{vehicle_number}_button")
+        )
         temp_layout1.addSpacing(temp_spacing)
-        temp_layout1.addWidget(getattr(self, f"copy_bag_vehicle{vehicle_number}_button"))
+        temp_layout1.addWidget(
+            getattr(self, f"copy_bag_vehicle{vehicle_number}_button")
+        )
         temp_layout1.addSpacing(temp_spacing)
         temp_layout1.addWidget(getattr(self, f"sync_vehicle{vehicle_number}_button"))
         temp_layout1.addSpacing(temp_spacing)
-        temp_layout2.addWidget(getattr(self, f"emergency_surface_vehicle{vehicle_number}_button"))
+        temp_layout2.addWidget(
+            getattr(self, f"emergency_surface_vehicle{vehicle_number}_button")
+        )
         temp_layout2.addSpacing(temp_spacing)
         temp_layout2.addWidget(getattr(self, f"recall_vehicle{vehicle_number}_button"))
         temp_layout2.addSpacing(temp_spacing)
-        temp_layout2.addWidget(getattr(self, f"emergency_shutdown_vehicle{vehicle_number}_button"))
+        temp_layout2.addWidget(
+            getattr(self, f"emergency_shutdown_vehicle{vehicle_number}_button")
+        )
         temp_layout2.addSpacing(temp_spacing)
-        temp_layout2.addWidget(getattr(self, f"clear_console_vehicle{vehicle_number}_button"))
+        temp_layout2.addWidget(
+            getattr(self, f"clear_console_vehicle{vehicle_number}_button")
+        )
 
         # Add the two button columns to the main horizontal layout
         temp_layout.addWidget(temp_sub_container1)
@@ -1954,7 +2373,7 @@ class MainWindow(QMainWindow):
 
         temp_V_layout.addWidget(self.make_hline())
         temp_V_layout.addWidget(temp_container)
-        
+
         # Return the vertical container holding all buttons and labels
         return temp_V_container
 
@@ -1992,7 +2411,7 @@ class MainWindow(QMainWindow):
         text_label.setStyleSheet(f"color: {self.text_color};")
         return text_label
 
-    #Dynamically creates a QPushButton with the given properties and stores it as an attribute.
+    # Dynamically creates a QPushButton with the given properties and stores it as an attribute.
     def create_vehicle_button(self, vehicle_number, name, text, callback, danger=False):
         """
         Dynamically creates a QPushButton with the given properties and stores it as an attribute.
@@ -2001,7 +2420,11 @@ class MainWindow(QMainWindow):
         button = QPushButton(text)
         button.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         button.clicked.connect(callback)
-        button.setStyleSheet(self.danger_button_style_sheet) if danger else button.setStyleSheet(self.normal_button_style_sheet)
+        (
+            button.setStyleSheet(self.danger_button_style_sheet)
+            if danger
+            else button.setStyleSheet(self.normal_button_style_sheet)
+        )
         attr_name = f"{name}_vehicle{vehicle_number}_button"
         setattr(self, attr_name, button)
 
@@ -2015,7 +2438,7 @@ class MainWindow(QMainWindow):
         temp_layout = QVBoxLayout()
         setattr(self, f"vehicle{vehicle_number}_column0_layout", temp_layout)
         temp_layout.setContentsMargins(0, 0, 0, 0)
-        temp_layout.setSpacing(0) 
+        temp_layout.setSpacing(0)
 
         # Create the container widget for this column and store it as an attribute
         temp_container = QWidget()
@@ -2024,8 +2447,11 @@ class MainWindow(QMainWindow):
         container_layout.addLayout(temp_layout)
 
         # Add the Vehicle title label at the top
-        temp_layout.addWidget(self.create_title_label(f"Vehicle {vehicle_number}"), alignment=Qt.AlignmentFlag.AlignTop)
-        
+        temp_layout.addWidget(
+            self.create_title_label(f"Vehicle {vehicle_number}"),
+            alignment=Qt.AlignmentFlag.AlignTop,
+        )
+
         # Section: Connections
         temp_label = QLabel("Connections")
         temp_label.setFont(QFont("Arial", 15, QFont.Weight.Bold))
@@ -2035,13 +2461,31 @@ class MainWindow(QMainWindow):
         temp_layout.addWidget(temp_label)
 
         # Add connection status icons (Wifi, Radio, Modem)
-        wifi_widget = self.create_icon_and_text("Wifi", self.icons_dict[self.feedback_dict["Wifi"][vehicle_number]], 0, vehicle_number, 1)
+        wifi_widget = self.create_icon_and_text(
+            "Wifi",
+            self.icons_dict[self.feedback_dict["Wifi"][vehicle_number]],
+            0,
+            vehicle_number,
+            1,
+        )
         temp_layout.addWidget(wifi_widget)
 
-        radio_widget = self.create_icon_and_text("Radio", self.icons_dict[self.feedback_dict["Radio"][vehicle_number]], 0, vehicle_number, 1)
+        radio_widget = self.create_icon_and_text(
+            "Radio",
+            self.icons_dict[self.feedback_dict["Radio"][vehicle_number]],
+            0,
+            vehicle_number,
+            1,
+        )
         temp_layout.addWidget(radio_widget)
 
-        modem_widget = self.create_icon_and_text("Modem", self.icons_dict[self.feedback_dict["Modem"][vehicle_number]], 0, vehicle_number, 1)
+        modem_widget = self.create_icon_and_text(
+            "Modem",
+            self.icons_dict[self.feedback_dict["Modem"][vehicle_number]],
+            0,
+            vehicle_number,
+            1,
+        )
         temp_layout.addWidget(modem_widget)
         temp_layout.addSpacing(20)
 
@@ -2054,19 +2498,37 @@ class MainWindow(QMainWindow):
         temp_layout.addWidget(temp_label)
 
         # Add sensor status icons (DVL, GPS, IMU)
-        DVL_sensor_widget = self.create_icon_and_text("DVL", self.icons_dict[self.feedback_dict["DVL"][vehicle_number]], 0, vehicle_number, 1)
+        DVL_sensor_widget = self.create_icon_and_text(
+            "DVL",
+            self.icons_dict[self.feedback_dict["DVL"][vehicle_number]],
+            0,
+            vehicle_number,
+            1,
+        )
         temp_layout.addWidget(DVL_sensor_widget)
 
-        GPS_sensor_widget = self.create_icon_and_text("GPS", self.icons_dict[self.feedback_dict["GPS"][vehicle_number]], 0, vehicle_number, 1)
+        GPS_sensor_widget = self.create_icon_and_text(
+            "GPS",
+            self.icons_dict[self.feedback_dict["GPS"][vehicle_number]],
+            0,
+            vehicle_number,
+            1,
+        )
         temp_layout.addWidget(GPS_sensor_widget)
-        
-        IMU_sensor_widget = self.create_icon_and_text("IMU", self.icons_dict[self.feedback_dict["IMU"][vehicle_number]], 0, vehicle_number, 1)
+
+        IMU_sensor_widget = self.create_icon_and_text(
+            "IMU",
+            self.icons_dict[self.feedback_dict["IMU"][vehicle_number]],
+            0,
+            vehicle_number,
+            1,
+        )
         temp_layout.addWidget(IMU_sensor_widget)
 
         # Return the container widget holding all status icons
         return temp_container
 
-    #create the second sub-column in the first column of the specific vehiclear pages (starts with "Nodes")
+    # create the second sub-column in the first column of the specific vehiclear pages (starts with "Nodes")
     def create_specific_vehicle_column01(self, vehicle_number):
         """
         Creates the second sub-column in the first column of the specific Vehicle pages.
@@ -2077,7 +2539,7 @@ class MainWindow(QMainWindow):
         # Create a vertical layout for the column and set margins and spacing
         temp_layout = QVBoxLayout()
         temp_layout.setContentsMargins(0, 0, 0, 0)
-        # temp_layout.setSpacing(0) 
+        # temp_layout.setSpacing(0)
 
         # Create the container widget for this column and store it as an attribute
         temp_container = QWidget()
@@ -2089,36 +2551,70 @@ class MainWindow(QMainWindow):
         container_layout.addLayout(temp_layout)
 
         # Add an (optional) title label at the top
-        temp_layout.addWidget(self.create_title_label(f""), alignment=Qt.AlignmentFlag.AlignTop)
+        temp_layout.addWidget(
+            self.create_title_label(f""), alignment=Qt.AlignmentFlag.AlignTop
+        )
 
         # Status widgets section
         status_spacing = 10
         temp_layout.addSpacing(status_spacing)
-        temp_layout.addWidget(self.create_title_label(f"Status"), alignment=Qt.AlignmentFlag.AlignTop)
+        temp_layout.addWidget(
+            self.create_title_label(f"Status"), alignment=Qt.AlignmentFlag.AlignTop
+        )
         temp_layout.addSpacing(status_spacing)
-        temp_layout.addWidget(self.create_normal_label("x (m): x", f"XPos{vehicle_number}"), alignment=Qt.AlignmentFlag.AlignVCenter)
+        temp_layout.addWidget(
+            self.create_normal_label("x (m): x", f"XPos{vehicle_number}"),
+            alignment=Qt.AlignmentFlag.AlignVCenter,
+        )
         temp_layout.addSpacing(status_spacing)
-        temp_layout.addWidget(self.create_normal_label("y (m): y", f"YPos{vehicle_number}"), alignment=Qt.AlignmentFlag.AlignVCenter)
+        temp_layout.addWidget(
+            self.create_normal_label("y (m): y", f"YPos{vehicle_number}"),
+            alignment=Qt.AlignmentFlag.AlignVCenter,
+        )
         temp_layout.addSpacing(status_spacing)
-        temp_layout.addWidget(self.create_normal_label("Depth (m): d", f"Depth{vehicle_number}"), alignment=Qt.AlignmentFlag.AlignVCenter)
+        temp_layout.addWidget(
+            self.create_normal_label("Depth (m): d", f"Depth{vehicle_number}"),
+            alignment=Qt.AlignmentFlag.AlignVCenter,
+        )
         temp_layout.addSpacing(status_spacing)
-        temp_layout.addWidget(self.create_normal_label("Heading (deg): h", f"Heading{vehicle_number}"), alignment=Qt.AlignmentFlag.AlignVCenter)
+        temp_layout.addWidget(
+            self.create_normal_label("Heading (deg): h", f"Heading{vehicle_number}"),
+            alignment=Qt.AlignmentFlag.AlignVCenter,
+        )
         temp_layout.addSpacing(status_spacing)
-        temp_layout.addWidget(self.create_normal_label("Current Waypoint: w", f"Waypoint{vehicle_number}"), alignment=Qt.AlignmentFlag.AlignVCenter)
+        temp_layout.addWidget(
+            self.create_normal_label(
+                "Current Waypoint: w", f"Waypoint{vehicle_number}"
+            ),
+            alignment=Qt.AlignmentFlag.AlignVCenter,
+        )
         temp_layout.addSpacing(status_spacing)
-        temp_layout.addWidget(self.create_normal_label("DVL Velocity <br>(m/s): v", f"DVL_vel{vehicle_number}"), alignment=Qt.AlignmentFlag.AlignVCenter)
+        temp_layout.addWidget(
+            self.create_normal_label(
+                "DVL Velocity <br>(m/s): v", f"DVL_vel{vehicle_number}"
+            ),
+            alignment=Qt.AlignmentFlag.AlignVCenter,
+        )
         temp_layout.addSpacing(status_spacing)
 
-        temp_layout.addWidget(self.create_normal_label("Battery (V): b", f"Battery{vehicle_number}"), alignment=Qt.AlignmentFlag.AlignVCenter)
+        temp_layout.addWidget(
+            self.create_normal_label("Battery (V): b", f"Battery{vehicle_number}"),
+            alignment=Qt.AlignmentFlag.AlignVCenter,
+        )
         temp_layout.addSpacing(status_spacing)
-        temp_layout.addWidget(self.create_normal_label("Pressure (Pa):<br>p", f"Pressure{vehicle_number}"), alignment=Qt.AlignmentFlag.AlignVCenter)
+        temp_layout.addWidget(
+            self.create_normal_label(
+                "Pressure (Pa):<br>p", f"Pressure{vehicle_number}"
+            ),
+            alignment=Qt.AlignmentFlag.AlignVCenter,
+        )
 
         # Return the container widget holding the mission and status widgets
         return temp_container
 
-    def create_normal_label(self, text, name): 
+    def create_normal_label(self, text, name):
         """
-        Creates a QLabel with the given text and object name, sets its font and margins, 
+        Creates a QLabel with the given text and object name, sets its font and margins,
         and stores it as an attribute for later access.
 
         Parameters:
@@ -2131,12 +2627,14 @@ class MainWindow(QMainWindow):
         text_label = QLabel(text)
         text_label.setTextFormat(Qt.TextFormat.RichText)
         setattr(self, name, text_label)
-        text_label.setObjectName(name) 
+        text_label.setObjectName(name)
         text_label.setFont(QFont("Arial", 13))
         text_label.setStyleSheet(f"color: {self.text_color};")
         text_label.setContentsMargins(0, 0, 0, 0)
         text_label.setWordWrap(True)  # Allow text to wrap if it's long
-        text_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        text_label.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
+        )
         return text_label
 
     def recieve_safety_status_message(self, vehicle_number, safety_message):
@@ -2156,39 +2654,55 @@ class MainWindow(QMainWindow):
             safety_message: The safety status message object containing various status fields.
         """
 
-        #logic is opposite, switch 0 and 1
-        if safety_message.gps_status.data: gps_data = 0
-        else: gps_data = 1
+        # logic is opposite, switch 0 and 1
+        if safety_message.gps_status.data:
+            gps_data = 0
+        else:
+            gps_data = 1
         self.feedback_dict["GPS"][vehicle_number] = gps_data
 
-        if safety_message.dvl_status.data: dvl_data = 0
-        else: dvl_data = 1
-        self.feedback_dict["DVL"][vehicle_number] = dvl_data 
-        
-        if safety_message.imu_published.data: imu_data = 1
-        else: imu_data = 0
+        if safety_message.dvl_status.data:
+            dvl_data = 0
+        else:
+            dvl_data = 1
+        self.feedback_dict["DVL"][vehicle_number] = dvl_data
+
+        if safety_message.imu_published.data:
+            imu_data = 1
+        else:
+            imu_data = 0
         self.feedback_dict["IMU"][vehicle_number] = imu_data
-        
-        #replace general page widgets
+
+        # replace general page widgets
         self.replace_general_page_icon_widget(vehicle_number, "GPS")
         self.replace_general_page_icon_widget(vehicle_number, "DVL")
         # self.replace_general_page_icon_widget(vehicle_number, "Wifi")
         self.replace_general_page_icon_widget(vehicle_number, "IMU")
 
-        #replace specific page widgets
+        # replace specific page widgets
         self.replace_specific_icon_widget(vehicle_number, "GPS")
         self.replace_specific_icon_widget(vehicle_number, "DVL")
         # self.replace_specific_icon_widget(vehicle_number, "Wifi")
         self.replace_specific_icon_widget(vehicle_number, "IMU")
 
-        #replace emergency status label
-        if self.feedback_dict["Status_messages"][vehicle_number] != safety_message.emergency_status.data:
-            self.feedback_dict["Status_messages"][vehicle_number] = safety_message.emergency_status.data
+        # replace emergency status label
+        if (
+            self.feedback_dict["Status_messages"][vehicle_number]
+            != safety_message.emergency_status.data
+        ):
+            self.feedback_dict["Status_messages"][
+                vehicle_number
+            ] = safety_message.emergency_status.data
             layout = self.general_page_vehicle_layouts.get(vehicle_number)
             widget = self.general_page_vehicle_widgets.get(vehicle_number)
-            new_status_label = self.get_status_label(vehicle_number, self.feedback_dict["Status_messages"][vehicle_number])
-            existing_label = widget.findChild(QLabel, f"Status_messages{vehicle_number}")
-            if existing_label: existing_label.setText(new_status_label.text())
+            new_status_label = self.get_status_label(
+                vehicle_number, self.feedback_dict["Status_messages"][vehicle_number]
+            )
+            existing_label = widget.findChild(
+                QLabel, f"Status_messages{vehicle_number}"
+            )
+            if existing_label:
+                existing_label.setText(new_status_label.text())
 
     def recieve_dvl_velocity(self, vehicle_number, msg):
         """
@@ -2196,14 +2710,16 @@ class MainWindow(QMainWindow):
         Used to update the DVL velocity widget for the vehicle.
         """
         self.dvl_velocity_signal.emit(vehicle_number, msg)
-    
+
     def _update_dvl_velocity(self, vehicle_number, msg):
         """
         Updates the DVL velocity widget for the specified vehicle based on the received message.
         """
-        #gets linear velocity from the x,y,and z components of the velocity vector
-        self.feedback_dict["DVL_vel"][vehicle_number] = round(math.sqrt(msg.velocity.x**2 + msg.velocity.y**2 + msg.velocity.z**2), 2)
-        #replace specific page status widget
+        # gets linear velocity from the x,y,and z components of the velocity vector
+        self.feedback_dict["DVL_vel"][vehicle_number] = round(
+            math.sqrt(msg.velocity.x**2 + msg.velocity.y**2 + msg.velocity.z**2), 2
+        )
+        # replace specific page status widget
         self.replace_specific_status_widget(vehicle_number, "DVL_vel")
 
     def recieve_smoothed_output_message(self, vehicle_number, msg):
@@ -2230,7 +2746,7 @@ class MainWindow(QMainWindow):
         self.feedback_dict["YPos"][vehicle_number] = round(y, 2)
         self.feedback_dict["Heading"][vehicle_number] = round(heading, 2)
 
-        #replace specific page status widget
+        # replace specific page status widget
         self.replace_specific_status_widget(vehicle_number, "XPos")
         self.replace_specific_status_widget(vehicle_number, "YPos")
         self.replace_specific_status_widget(vehicle_number, "Heading")
@@ -2246,9 +2762,9 @@ class MainWindow(QMainWindow):
         """
         Updates the depth widget for the specified vehicle based on the received message.
         """
-        #update feedback dict 
+        # update feedback dict
         self.feedback_dict["Depth"][vehicle_number] = round(msg.pose.pose.position.z, 2)
-        #replace specific page status widget
+        # replace specific page status widget
         self.replace_specific_status_widget(vehicle_number, "Depth")
 
     def recieve_pressure_data_message(self, vehicle_number, msg):
@@ -2262,9 +2778,9 @@ class MainWindow(QMainWindow):
         """
         Updates the pressure widget for the specified vehicle based on the received message.
         """
-        #update feedback dict 
+        # update feedback dict
         self.feedback_dict["Pressure"][vehicle_number] = round(msg.fluid_pressure, 2)
-        #replace specific page status widget
+        # replace specific page status widget
         self.replace_specific_status_widget(vehicle_number, "Pressure")
 
     def recieve_battery_data_message(self, vehicle_number, msg):
@@ -2273,48 +2789,48 @@ class MainWindow(QMainWindow):
         Used to update the battery widget for the vehicle.
         """
         self.battery_data_signal.emit(vehicle_number, msg)
-        
+
     def update_battery_data(self, vehicle_number, msg):
         """
         Updates the battery widget for the specified vehicle based on the received message.
         """
-        #update feedback dict 
+        # update feedback dict
         self.feedback_dict["Battery"][vehicle_number] = round(msg.voltage, 1)
-        #replace specific page status widget
+        # replace specific page status widget
         self.replace_specific_status_widget(vehicle_number, "Battery")
 
-    def recieve_kill_confirmation_message(self, kill_message): 
+    def recieve_kill_confirmation_message(self, kill_message):
         """
         Slot to receive a kill confirmation message from the ROS topic.
         Emits a signal to update the GUI with the received message.
-        
+
         Parameters:
             kill_message: The message object received from the 'confirm_e_kill' topic (std_msgs/Bool).
         """
         self.kill_confirm_signal.emit(kill_message)
 
-    def _update_kill_confirmation_gui(self, kill_message): 
+    def _update_kill_confirmation_gui(self, kill_message):
         """
         Slot connected to kill_confirm_signal.
         Updates the GUI console with a confirmation or failure message for all Vehicles,
         depending on the value of the kill_message.
-        
+
         Parameters:
             kill_message: The message object received from the 'confirm_e_kill' topic (std_msgs/Bool).
         """
-        value = kill_message.data if hasattr(kill_message, 'data') else kill_message
-        if value: 
+        value = kill_message.data if hasattr(kill_message, "data") else kill_message
+        if value:
             for i in self.selected_vehicles:
                 self.recieve_console_update("Kill Command Confirmed", i)
-        else: 
+        else:
             for i in self.selected_vehicles:
                 self.recieve_console_update("Kill Command Failed", i)
 
-    def recieve_surface_confirmation_message(self, surf_message): 
+    def recieve_surface_confirmation_message(self, surf_message):
         """
         Slot to receive a surface confirmation message from the ROS topic.
         Emits a signal to update the GUI with the received message.
-        
+
         Parameters:
             surf_message: The message object received from the 'confirm_e_surface' topic (std_msgs/Bool).
         """
@@ -2325,15 +2841,15 @@ class MainWindow(QMainWindow):
         Slot connected to surface_confirm_signal.
         Updates the GUI console with a confirmation or failure message for all Vehicles,
         depending on the value of the surf_message.
-        
+
         Parameters:
             surf_message: The message object received from the 'confirm_e_surface' topic (std_msgs/Bool).
         """
-        value = surf_message.data if hasattr(surf_message, 'data') else surf_message
-        if value: 
+        value = surf_message.data if hasattr(surf_message, "data") else surf_message
+        if value:
             for i in self.selected_vehicles:
                 self.recieve_console_update("Surface Command Confirmed", i)
-        else: 
+        else:
             for i in self.selected_vehicles:
                 self.recieve_console_update("Surface Command Failed", i)
 
@@ -2372,40 +2888,52 @@ class MainWindow(QMainWindow):
                 try:
                     if vehicle_number not in self.feedback_dict[feedback_key]:
                         continue
-                    
+
                     # Use the index i instead of vehicle_number-1
                     status = 1 if conn_message.connections[i] else 0
                     self.feedback_dict[feedback_key][vehicle_number] = status
                     # prefix = feedback_key.split("_")[0]
-                    
+
                     # Update general page
                     layout = self.general_page_vehicle_layouts.get(vehicle_number)
                     widget = self.general_page_vehicle_widgets.get(vehicle_number)
                     if layout and widget:
-                        self.replace_general_page_icon_widget(vehicle_number, feedback_key)
+                        self.replace_general_page_icon_widget(
+                            vehicle_number, feedback_key
+                        )
 
                     # Update specific page
-                    layout = getattr(self, f"vehicle{vehicle_number}_column0_layout", None)
-                    widget = getattr(self, f"vehicle{vehicle_number}_column0_widget", None)
+                    layout = getattr(
+                        self, f"vehicle{vehicle_number}_column0_layout", None
+                    )
+                    widget = getattr(
+                        self, f"vehicle{vehicle_number}_column0_widget", None
+                    )
                     if layout and widget:
                         self.replace_specific_icon_widget(vehicle_number, feedback_key)
-                        
+
                 except Exception as e:
-                    print(f"Exception updating connection status for vehicle {vehicle_number}: {e}")
+                    print(
+                        f"Exception updating connection status for vehicle {vehicle_number}: {e}"
+                    )
 
             # Update seconds since last ping for each Vehicle
             for i, vehicle_number in enumerate(conn_message.vehicle_ids):
                 try:
                     if vehicle_number not in self.selected_vehicles:
                         continue
-                    
+
                     # Use the index i instead of count
                     ping = conn_message.last_ping[i]
                     self.feedback_dict[feedback_key_seconds][vehicle_number] = ping
-                    
-                    layout = getattr(self, f"vehicle{vehicle_number}_buttons_column_layout", None)
-                    widget = getattr(self, f"vehicle{vehicle_number}_buttons_column_widget", None)
-                    
+
+                    layout = getattr(
+                        self, f"vehicle{vehicle_number}_buttons_column_layout", None
+                    )
+                    widget = getattr(
+                        self, f"vehicle{vehicle_number}_buttons_column_widget", None
+                    )
+
                     if layout and widget:
                         if conn_type == 1:
                             old_label = f"vehicle{vehicle_number}_radio_seconds_widget"
@@ -2425,26 +2953,38 @@ class MainWindow(QMainWindow):
                             new_text = f"Acoustics: {ping}"
                             if existing_label:
                                 existing_label.setText(new_text)
-                                
+
                 except Exception as e:
-                    print(f"Exception updating ping time for vehicle {vehicle_number}: {e}")
+                    print(
+                        f"Exception updating ping time for vehicle {vehicle_number}: {e}"
+                    )
 
         except Exception as e:
             print("Exception in update_connections_gui:", e)
             for i in self.selected_vehicles:
-                self.recieve_console_update(f"Exception in update_connections_gui: {e}", i)
-            
+                self.recieve_console_update(
+                    f"Exception in update_connections_gui: {e}", i
+                )
+
     def get_status_label(self, vehicle_number, status_message):
         """
         Returns a QLabel for the emergency status message for the given vehicle.
         Used to display status such as "Good", "EMERGENCY", "Surfaced/Disarmed", or "No Data Received".
         """
-        if not status_message: message_text = "Good"
-        elif status_message == 1: message_text = "EMERGENCY: <br>Recall Vehicle"
-        elif status_message == 2: message_text = "Surfaced/Disarmed"
-        else: message_text = "No Data Received"
+        if not status_message:
+            message_text = "Good"
+        elif status_message == 1:
+            message_text = "EMERGENCY: <br>Recall Vehicle"
+        elif status_message == 2:
+            message_text = "Surfaced/Disarmed"
+        else:
+            message_text = "No Data Received"
 
-        temp_label = QLabel(f"{message_text}", font=QFont("Arial", 13), alignment=Qt.AlignmentFlag.AlignTop)
+        temp_label = QLabel(
+            f"{message_text}",
+            font=QFont("Arial", 13),
+            alignment=Qt.AlignmentFlag.AlignTop,
+        )
         temp_label.setTextFormat(Qt.TextFormat.RichText)
         return temp_label
 
@@ -2456,7 +2996,7 @@ class MainWindow(QMainWindow):
             console_message: The console message object.
         """
         self.update_console_signal.emit(console_message, vehicle_number)
-    
+
     def _update_console_gui(self, console_message, vehicle_number):
         """
         Appends a new console message to the specific Vehicle's console log label.
@@ -2473,17 +3013,27 @@ class MainWindow(QMainWindow):
                 label = self.findChild(QLabel, f"Console_messages{vehicle}")
                 if label:
                     current_text = label.text()
-                    updated_text = f"{current_text}\n{console_message}" if current_text else console_message
+                    updated_text = (
+                        f"{current_text}\n{console_message}"
+                        if current_text
+                        else console_message
+                    )
                     label.setText(updated_text)
                     label.setStyleSheet(f"color: {self.text_color};")
                     # Scroll to the bottom of the scroll area only if user was already at the bottom
-                    scroll_area = getattr(self, f"vehicle{vehicle}_console_scroll_area", None)
+                    scroll_area = getattr(
+                        self, f"vehicle{vehicle}_console_scroll_area", None
+                    )
                     if scroll_area:
                         vbar = scroll_area.verticalScrollBar()
-                        at_bottom = vbar.value() >= vbar.maximum() - 2  # Allow for rounding
+                        at_bottom = (
+                            vbar.value() >= vbar.maximum() - 2
+                        )  # Allow for rounding
+
                         def maybe_scroll():
                             if at_bottom:
                                 vbar.setValue(vbar.maximum())
+
                         QTimer.singleShot(50, maybe_scroll)
                 else:
                     print(f"Console log label not found for Vehicle {vehicle}")
@@ -2500,9 +3050,11 @@ class MainWindow(QMainWindow):
         status = self.feedback_dict[prefix][vehicle_number]
         icon_type = self.icons_dict[status]
         existing_label = widget.findChild(QLabel, f"icon_{prefix}{vehicle_number}0")
-        if existing_label: self.replace_icon_widget(existing_label, icon_type)
-        else: print(f"icon_{prefix}{vehicle_number}0 label does not exist")
-    
+        if existing_label:
+            self.replace_icon_widget(existing_label, icon_type)
+        else:
+            print(f"icon_{prefix}{vehicle_number}0 label does not exist")
+
     def replace_specific_icon_widget(self, vehicle_number, prefix):
         """
         Replaces the icon widget for a connection or sensor on the specific vehicle tab.
@@ -2513,15 +3065,17 @@ class MainWindow(QMainWindow):
         status = self.feedback_dict[prefix][vehicle_number]
         icon_type = self.icons_dict[status]
         existing_label = widget.findChild(QLabel, f"icon_{prefix}{vehicle_number}1")
-        if existing_label: self.replace_icon_widget(existing_label, icon_type)
-        else: print(f"icon_{prefix}{vehicle_number}1 label does not exist")
+        if existing_label:
+            self.replace_icon_widget(existing_label, icon_type)
+        else:
+            print(f"icon_{prefix}{vehicle_number}1 label does not exist")
 
     def replace_icon_widget(self, icon_label, icon_type):
         """
         Updates the icon label's pixmap and type to reflect the new status.
         Used for both general and specific vehicle tab icons.
         """
-        if icon_label: 
+        if icon_label:
             icon_label._icon_type = icon_type
             # Update the original icon pixmap to the new icon
             icon_pixmap = self.style().standardIcon(icon_type).pixmap(16, 16)
@@ -2535,12 +3089,17 @@ class MainWindow(QMainWindow):
         """
         layout = getattr(self, f"vehicle{vehicle_number}_column01_layout")
         widget = getattr(self, f"vehicle{vehicle_number}_column01_widget")
-        new_text = self.key_to_text_dict[prefix] + str(self.feedback_dict[prefix][vehicle_number])
+        new_text = self.key_to_text_dict[prefix] + str(
+            self.feedback_dict[prefix][vehicle_number]
+        )
         existing_label = widget.findChild(QLabel, f"{prefix}{vehicle_number}")
-        if existing_label: existing_label.setText(new_text)
-        else: print(f"label with name {prefix}{vehicle_number} does not exist")
+        if existing_label:
+            existing_label.setText(new_text)
+        else:
+            print(f"label with name {prefix}{vehicle_number} does not exist")
 
-#used by ros to open a window. Needed in order to start PyQt on a different thread than ros
+
+# used by ros to open a window. Needed in order to start PyQt on a different thread than ros
 def OpenWindow(ros_node, selected_vehicles, borders=False):
     """
     Launches the main GUI window for the base station application.
@@ -2567,10 +3126,12 @@ def OpenWindow(ros_node, selected_vehicles, borders=False):
 
     pixmap = QPixmap(img_path)
     pixmap = pixmap.toImage()
-    pixmap.invertPixels() #This turns the Splash image from dark to light for dark mode
+    pixmap.invertPixels()  # This turns the Splash image from dark to light for dark mode
     pixmap = QPixmap.fromImage(pixmap)
     if pixmap.isNull():
-        print(f"Warning: ⚠️ Could not load splash image '{img_path}'. Using solid color instead.")
+        print(
+            f"Warning: ⚠️ Could not load splash image '{img_path}'. Using solid color instead."
+        )
         pixmap = QPixmap(window_width, window_height)
         pixmap.fill(QColor(("#0F1C37")))
     else:
@@ -2583,7 +3144,12 @@ def OpenWindow(ros_node, selected_vehicles, borders=False):
         painter.end()
         pixmap = background
 
-    pixmap = pixmap.scaled(window_width, window_height, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+    pixmap = pixmap.scaled(
+        window_width,
+        window_height,
+        Qt.AspectRatioMode.KeepAspectRatio,
+        Qt.TransformationMode.SmoothTransformation,
+    )
     splash = CustomSplash(pixmap)
     splash.setWindowFlag(Qt.WindowType.WindowStaysOnTopHint, False)
     splash.show()
@@ -2615,17 +3181,16 @@ def OpenWindow(ros_node, selected_vehicles, borders=False):
         window = MainWindow(ros_node, selected_vehicles)
         window.resize(window_width, window_height)
         window.move(x, y)
-        result['window'] = window
-        QTimer.singleShot(3000, lambda: (
-            window.show(),
-            window.activateWindow(),
-            splash.close()
-        ))
+        result["window"] = window
+        QTimer.singleShot(
+            3000, lambda: (window.show(), window.activateWindow(), splash.close())
+        )
 
     QTimer.singleShot(500, build_main_window)
 
-    #return the app and the result
+    # return the app and the result
     return app, result
+
 
 class CustomSplash(QWidget):
     """
@@ -2633,10 +3198,13 @@ class CustomSplash(QWidget):
     Displays a splash image and an optional message label.
     Used to show branding and loading status before the main window appears.
     """
+
     def __init__(self, pixmap, parent=None):
         super().__init__(parent)
         # Set window flags for splash appearance
-        self.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.WindowStaysOnTopHint)
+        self.setWindowFlags(
+            Qt.WindowType.FramelessWindowHint | Qt.WindowType.WindowStaysOnTopHint
+        )
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         # Main image label
         self.label = QLabel(self)
@@ -2645,8 +3213,12 @@ class CustomSplash(QWidget):
         self.resize(pixmap.size())
         # Message label for status text
         self.message_label = QLabel("", self)
-        self.message_label.setAlignment(Qt.AlignmentFlag.AlignBottom | Qt.AlignmentFlag.AlignHCenter)
-        self.message_label.setStyleSheet("color: white; font-size: 18pt; font-weight: bold;")
+        self.message_label.setAlignment(
+            Qt.AlignmentFlag.AlignBottom | Qt.AlignmentFlag.AlignHCenter
+        )
+        self.message_label.setStyleSheet(
+            "color: white; font-size: 18pt; font-weight: bold;"
+        )
         self.message_label.setGeometry(0, pixmap.height() - 60, pixmap.width(), 60)
 
     def showMessage(self, text):
@@ -2654,6 +3226,7 @@ class CustomSplash(QWidget):
         Sets the splash message text.
         """
         self.message_label.setText(text)
+
 
 class ConfirmationDialog(QDialog):
     """
@@ -2668,7 +3241,16 @@ class ConfirmationDialog(QDialog):
         text_color (str): Text color for the dialog.
         pop_up_window_style (str): Custom stylesheet for the dialog.
     """
-    def __init__(self, window_title, message_text, parent=None, background_color="white", text_color="black", pop_up_window_style=None):
+
+    def __init__(
+        self,
+        window_title,
+        message_text,
+        parent=None,
+        background_color="white",
+        text_color="black",
+        pop_up_window_style=None,
+    ):
         super().__init__(parent)
 
         self.setWindowTitle(window_title)
@@ -2695,6 +3277,7 @@ class ConfirmationDialog(QDialog):
         layout.addWidget(self.buttonBox)
         self.setLayout(layout)
 
+
 class LoadMissionsDialog(QDialog):
     """
     Custom dialog for loading the vehicle missions.
@@ -2709,15 +3292,26 @@ class LoadMissionsDialog(QDialog):
         pop_up_window_style (str): Custom stylesheet for the dialog.
         selected_vehicles (list): List of selected vehicle numbers.
     """
-    def __init__(self, parent=None, vehicle=0, background_color="white", text_color="black", pop_up_window_style=None, selected_vehicles=None):
+
+    def __init__(
+        self,
+        parent=None,
+        vehicle=0,
+        background_color="white",
+        text_color="black",
+        pop_up_window_style=None,
+        selected_vehicles=None,
+    ):
         """
         Parameters:
             options (list of str): List of checkbox labels.
         """
         super().__init__(parent)
         # Set window title based on mode
-        if not vehicle: self.setWindowTitle("Load All Missions")
-        else: self.setWindowTitle(f"Load Vehicle{vehicle} Mission")
+        if not vehicle:
+            self.setWindowTitle("Load All Missions")
+        else:
+            self.setWindowTitle(f"Load Vehicle{vehicle} Mission")
         self.checkboxes = {}
         layout = QVBoxLayout()
 
@@ -2731,44 +3325,52 @@ class LoadMissionsDialog(QDialog):
         if not vehicle:
             # Multi-vehicle mode: create tabs for each vehicle
             self.selected_files = {}  # Store files per tab
-            #Create the tabs
+            # Create the tabs
             self.pop_up_tabs = QTabWidget()
-            #Orient the tabs at the tob of the screen
+            # Orient the tabs at the tob of the screen
             self.pop_up_tabs.setTabPosition(QTabWidget.TabPosition.North)
-            #The tabs' order can't be changed or moved
+            # The tabs' order can't be changed or moved
             self.pop_up_tabs.setMovable(False)
             tab_names = [f"Vehicle {i}" for i in selected_vehicles]
-            
+
             # Create separate content widgets for each tab
-            for name in tab_names: 
+            for name in tab_names:
                 content_widget = QWidget()
                 content_layout = QVBoxLayout(content_widget)
-                
+
                 # Add file selection widgets to each tab
                 file_section_label = QLabel("Select Mission File:")
-                file_section_label.setStyleSheet(f"font-weight: bold; color: {text_color};")
+                file_section_label.setStyleSheet(
+                    f"font-weight: bold; color: {text_color};"
+                )
                 content_layout.addWidget(file_section_label)
 
                 # File display for this tab
                 file_display_label = QLabel("No file selected")
                 file_display_label.setWordWrap(True)
-                file_display_label.setStyleSheet(f"border: 1px solid {text_color}; padding: 8px; min-height: 40px; color: {text_color}; background-color: {background_color};")
+                file_display_label.setStyleSheet(
+                    f"border: 1px solid {text_color}; padding: 8px; min-height: 40px; color: {text_color}; background-color: {background_color};"
+                )
                 content_layout.addWidget(file_display_label)
 
                 # Store the file display label for this tab
                 self.file_display_labels[name] = file_display_label
-                
+
                 # Browse button for this tab
                 browse_button = QPushButton("Browse Files...")
-                browse_button.setStyleSheet(f"background-color: {background_color}; color: {text_color}; border: 1px solid {text_color}; padding: 5px;")
-                browse_button.clicked.connect(lambda checked, tab=name: self.browse_file(tab))
+                browse_button.setStyleSheet(
+                    f"background-color: {background_color}; color: {text_color}; border: 1px solid {text_color}; padding: 5px;"
+                )
+                browse_button.clicked.connect(
+                    lambda checked, tab=name: self.browse_file(tab)
+                )
                 content_layout.addWidget(browse_button)
-                
+
                 self.pop_up_tabs.addTab(content_widget, name)
-            
+
             # Add the tab widget to the main layout
             layout.addWidget(self.pop_up_tabs)
-            
+
         else:
             # Single vehicle mode: add file selection directly to layout
             self.selected_file = None  # Initialize for single vehicle mode
@@ -2779,12 +3381,16 @@ class LoadMissionsDialog(QDialog):
             # File display
             self.file_display_label = QLabel("No file selected")
             self.file_display_label.setWordWrap(True)
-            self.file_display_label.setStyleSheet(f"border: 1px solid {text_color}; padding: 8px; min-height: 40px; color: {text_color}; background-color: {background_color};")
+            self.file_display_label.setStyleSheet(
+                f"border: 1px solid {text_color}; padding: 8px; min-height: 40px; color: {text_color}; background-color: {background_color};"
+            )
             layout.addWidget(self.file_display_label)
-            
+
             # Browse button
             browse_button = QPushButton("Browse Files...")
-            browse_button.setStyleSheet(f"background-color: {background_color}; color: {text_color}; border: 1px solid {text_color}; padding: 5px;")
+            browse_button.setStyleSheet(
+                f"background-color: {background_color}; color: {text_color}; border: 1px solid {text_color}; padding: 5px;"
+            )
             browse_button.clicked.connect(self.browse_file)
             layout.addWidget(browse_button)
 
@@ -2801,15 +3407,17 @@ class LoadMissionsDialog(QDialog):
                 lambda: self.apply_to_all(
                     background_color=background_color,
                     text_color=text_color,
-                    pop_up_window_style=pop_up_window_style
+                    pop_up_window_style=pop_up_window_style,
                 )
             )
 
         button_row.addWidget(buttonBox)
         layout.addLayout(button_row)
         self.setLayout(layout)
-    
-    def apply_to_all(self, background_color=None, text_color=None, pop_up_window_style=None):
+
+    def apply_to_all(
+        self, background_color=None, text_color=None, pop_up_window_style=None
+    ):
         """
         Applies the currently selected file in the active tab to all vehicles/tabs.
         Shows a confirmation dialog before overwriting.
@@ -2819,7 +3427,11 @@ class LoadMissionsDialog(QDialog):
         # Check if a file is selected for the current tab
         selected_file = self.selected_files.get(current_tab_name)
         if not selected_file:
-            QMessageBox.warning(self, "No File Selected", "Please select a file for the current tab before applying to all.")
+            QMessageBox.warning(
+                self,
+                "No File Selected",
+                "Please select a file for the current tab before applying to all.",
+            )
             return
 
         # Confirm with the user
@@ -2829,7 +3441,7 @@ class LoadMissionsDialog(QDialog):
             self,
             background_color=background_color,
             text_color=text_color,
-            pop_up_window_style=pop_up_window_style
+            pop_up_window_style=pop_up_window_style,
         )
         if dlg.exec():
             # Apply the selected file to all tabs (even if not previously selected)
@@ -2843,14 +3455,16 @@ class LoadMissionsDialog(QDialog):
         Updates the display label with the selected file name.
         """
         # Set default directory - you can customize this path
-        default_dir = os.path.expanduser("/home/frostlab/base_station/mission_control/missions")
-        
+        default_dir = os.path.expanduser(
+            "/home/frostlab/base_station/mission_control/missions"
+        )
+
         if tab_name:
             file_path, _ = QFileDialog.getOpenFileName(
                 self,
                 f"Select Mission File for {tab_name}",
                 default_dir,
-                "Mission Files (*.yaml *.yml *.json);;All Files (*)"
+                "Mission Files (*.yaml *.yml *.json);;All Files (*)",
             )
             if file_path:
                 self.selected_files[tab_name] = file_path
@@ -2860,7 +3474,7 @@ class LoadMissionsDialog(QDialog):
                 self,
                 "Select Mission File",
                 default_dir,
-                "Mission Files (*.yaml *.yml *.json);;All Files (*)"
+                "Mission Files (*.yaml *.yml *.json);;All Files (*)",
             )
             if file_path:
                 self.selected_file = file_path
@@ -2877,7 +3491,7 @@ class LoadMissionsDialog(QDialog):
             else:
                 self.file_display_labels[tab_name].setText("No file selected")
         else:
-            if hasattr(self, 'file_display_label') and hasattr(self, 'selected_file'):
+            if hasattr(self, "file_display_label") and hasattr(self, "selected_file"):
                 if self.selected_file:
                     file_name = os.path.basename(self.selected_file)
                     self.file_display_label.setText(file_name)
@@ -2889,17 +3503,27 @@ class LoadMissionsDialog(QDialog):
         Validates that all tabs (multi-vehicle) or the single vehicle have a selected file before accepting.
         Shows a warning if any are missing.
         """
-        if hasattr(self, 'selected_files'):
-            if len(self.selected_files) == len(self.file_display_labels) and all(self.selected_files.values()):
+        if hasattr(self, "selected_files"):
+            if len(self.selected_files) == len(self.file_display_labels) and all(
+                self.selected_files.values()
+            ):
                 self.accept()
             else:
                 from PyQt6.QtWidgets import QMessageBox
-                QMessageBox.warning(self, "Files Required", "Please select a mission file for each Vehicle before continuing.")
-        elif hasattr(self, 'selected_file') and self.selected_file:
+
+                QMessageBox.warning(
+                    self,
+                    "Files Required",
+                    "Please select a mission file for each Vehicle before continuing.",
+                )
+        elif hasattr(self, "selected_file") and self.selected_file:
             self.accept()
         else:
             from PyQt6.QtWidgets import QMessageBox
-            QMessageBox.warning(self, "File Required", "Please select a mission file before continuing.")
+
+            QMessageBox.warning(
+                self, "File Required", "Please select a mission file before continuing."
+            )
 
     def get_states(self):
         """
@@ -2907,10 +3531,11 @@ class LoadMissionsDialog(QDialog):
         For multi-vehicle: {"selected_files": {tab_name: file_path, ...}}
         For single vehicle: {"selected_file": file_path}
         """
-        if hasattr(self, 'selected_files'):
+        if hasattr(self, "selected_files"):
             return {"selected_files": self.selected_files}
         else:
-            return {"selected_file": getattr(self, 'selected_file', None)}
+            return {"selected_file": getattr(self, "selected_file", None)}
+
 
 class StartMissionsDialog(QDialog):
     """
@@ -2927,14 +3552,26 @@ class StartMissionsDialog(QDialog):
         text_color (str): Text color for the dialog.
         pop_up_window_style (str): Custom stylesheet for the dialog.
     """
-    def __init__(self, options, parent=None, passed_option_map=None, vehicle=0, background_color="white", text_color="black", pop_up_window_style=None):
+
+    def __init__(
+        self,
+        options,
+        parent=None,
+        passed_option_map=None,
+        vehicle=0,
+        background_color="white",
+        text_color="black",
+        pop_up_window_style=None,
+    ):
         """
         Parameters:
             options (list of str): List of checkbox labels.
         """
         super().__init__(parent)
-        if not vehicle: self.setWindowTitle("Start All Missions Configuration")
-        else: self.setWindowTitle(f"Start Vehicle{vehicle} Mission Configuration")
+        if not vehicle:
+            self.setWindowTitle("Start All Missions Configuration")
+        else:
+            self.setWindowTitle(f"Start Vehicle{vehicle} Mission Configuration")
         self.checkboxes = {}
         self.passed_option_map = passed_option_map
         layout = QVBoxLayout()
@@ -2963,18 +3600,26 @@ class StartMissionsDialog(QDialog):
         buttonBox.accepted.connect(self.validate_and_accept)
         layout.addWidget(buttonBox)
         self.setLayout(layout)
-    
+
     def validate_and_accept(self):
         """
         Validates that if 'Record rosbag' is checked, a prefix is provided, and vice versa.
         Shows warnings if validation fails.
         """
         states = self.get_states()
-        #if record rosbag was chosen, a prefix must be given, as well as the opposite
-        if states["record_rosbag"] and not states["rosbag_prefix"]: 
-            QMessageBox.warning(self, "Prefix Required to Record Rosbag", "Please enter a rosbag prefix before continuing")
-        elif not states["record_rosbag"] and states["rosbag_prefix"]: 
-            QMessageBox.warning(self, "Record Rosbag Required to have Prefix", "Please select record rosbag before continuing")
+        # if record rosbag was chosen, a prefix must be given, as well as the opposite
+        if states["record_rosbag"] and not states["rosbag_prefix"]:
+            QMessageBox.warning(
+                self,
+                "Prefix Required to Record Rosbag",
+                "Please enter a rosbag prefix before continuing",
+            )
+        elif not states["record_rosbag"] and states["rosbag_prefix"]:
+            QMessageBox.warning(
+                self,
+                "Record Rosbag Required to have Prefix",
+                "Please select record rosbag before continuing",
+            )
         else:
             self.accept()
             return
@@ -2990,6 +3635,7 @@ class StartMissionsDialog(QDialog):
             result[self.passed_option_map[opt]] = le.text()
         return result
 
+
 class ConfigurationWindow(QDialog):
     """
     Custom configuration dialog for selecting vehicles.
@@ -3002,7 +3648,10 @@ class ConfigurationWindow(QDialog):
         background_color (str): Background color for the dialog.
         text_color (str): Text color for the dialog.
     """
-    def __init__(self, options, parent=None, background_color="white", text_color="black"):
+
+    def __init__(
+        self, options, parent=None, background_color="white", text_color="black"
+    ):
         super().__init__(parent)
         self.setWindowTitle("Configuration")
         self.checkboxes = {}
@@ -3016,7 +3665,8 @@ class ConfigurationWindow(QDialog):
 
         self.setMinimumWidth(300)
         self.resize(300, 200)
-        self.setStyleSheet(f"""
+        self.setStyleSheet(
+            f"""
             QDialog {{
                 background-color: {self.background_color};
                 color: {self.text_color};
@@ -3041,7 +3691,8 @@ class ConfigurationWindow(QDialog):
                 border: 1px solid {self.text_color};
                 padding: 2px;
             }}
-        """)
+        """
+        )
 
         self.inputs = []
 
@@ -3085,7 +3736,11 @@ class ConfigurationWindow(QDialog):
         current_count = sum(cb.isChecked() for cb in self.checkboxes.values())
         current_count += len(self.custom_inputs)
         if current_count >= self.MAX_VEHICLES:
-            QMessageBox.warning(self, "Limit Reached", f"You cannot add more than {self.MAX_VEHICLES} Vehicles.")
+            QMessageBox.warning(
+                self,
+                "Limit Reached",
+                f"You cannot add more than {self.MAX_VEHICLES} Vehicles.",
+            )
             return
         # Remove the plus button that was clicked
         self.custom_container.removeWidget(plus_btn)
@@ -3099,7 +3754,7 @@ class ConfigurationWindow(QDialog):
         self.add_custom_plus_button()
         # Adjust the dialog size to fit new content
         self.adjustSize()
-        
+
     def validate_and_accept(self):
         """
         Validates that at least one vehicle is selected, no duplicates, and all numbers are valid.
@@ -3109,22 +3764,43 @@ class ConfigurationWindow(QDialog):
         valid_custom = True
         valid_vehicle_number = True
         if not states:
-            QMessageBox.warning(self, "Selection Required", "Please select at least one Vehicle before continuing.")
+            QMessageBox.warning(
+                self,
+                "Selection Required",
+                "Please select at least one Vehicle before continuing.",
+            )
         elif len(states) > self.MAX_VEHICLES:
-            QMessageBox.warning(self, "Max Vehicle Limit Reached", "Selection of more than 4 Vehicles not allowed")
+            QMessageBox.warning(
+                self,
+                "Max Vehicle Limit Reached",
+                "Selection of more than 4 Vehicles not allowed",
+            )
         else:
             for value in states:
                 try:
                     num = int(value)
-                    if num > self.HIGHEST_VEHICLE_LABEL or num < 0: valid_vehicle_number = False
+                    if num > self.HIGHEST_VEHICLE_LABEL or num < 0:
+                        valid_vehicle_number = False
                 except:
                     valid_custom = False
             if len(states) != len(set(states)):
-                QMessageBox.warning(self, "Duplicate Vehicles", "Please ensure all Vehicle numbers are unique.")
+                QMessageBox.warning(
+                    self,
+                    "Duplicate Vehicles",
+                    "Please ensure all Vehicle numbers are unique.",
+                )
             elif not valid_custom:
-                QMessageBox.warning(self, "Invalid Custom", "Please enter a valid integer for custom Vehicle number.")
+                QMessageBox.warning(
+                    self,
+                    "Invalid Custom",
+                    "Please enter a valid integer for custom Vehicle number.",
+                )
             elif not valid_vehicle_number:
-                QMessageBox.warning(self, "Invalid Vehicle Number", "Please enter an integer from 0-999.")
+                QMessageBox.warning(
+                    self,
+                    "Invalid Vehicle Number",
+                    "Please enter an integer from 0-999.",
+                )
             else:
                 self.accept()
 
@@ -3149,7 +3825,8 @@ class ConfigurationWindow(QDialog):
                     selected_vehicles.append(value)
         return selected_vehicles
 
-class CalibrateFinsDialog(QDialog): 
+
+class CalibrateFinsDialog(QDialog):
     """
     Custom dialog for fin calibration.
     Allows the user to adjust fin offsets for each vehicle using sliders.
@@ -3168,12 +3845,22 @@ class CalibrateFinsDialog(QDialog):
         vehicle_init_params (dict): Initial fin values for each vehicle.
     """
 
-    #template vehicle_init_params
-    # {1: {'top_fin_offset': -10.0, 'right_fin_offset': 0.0, 'left_fin_offset': -0.0, }, 
-    # 2: {'top_fin_offset': -10.0, 'right_fin_offset': 0.0, 'left_fin_offset': -0.0, }, 
+    # template vehicle_init_params
+    # {1: {'top_fin_offset': -10.0, 'right_fin_offset': 0.0, 'left_fin_offset': -0.0, },
+    # 2: {'top_fin_offset': -10.0, 'right_fin_offset': 0.0, 'left_fin_offset': -0.0, },
     # 3: {'top_fin_offset': -10.0, 'right_fin_offset': 0.0, 'left_fin_offset': -0.0 }}
 
-    def __init__(self, parent=None, background_color="white", text_color="black", pop_up_window_style=None, selected_vehicles=None, passed_ros_node=None, on_slider_change=None, vehicle_init_params=None):
+    def __init__(
+        self,
+        parent=None,
+        background_color="white",
+        text_color="black",
+        pop_up_window_style=None,
+        selected_vehicles=None,
+        passed_ros_node=None,
+        on_slider_change=None,
+        vehicle_init_params=None,
+    ):
         super().__init__(parent)
         self.setWindowTitle("Fin Calibration:")
         self.pub_types = {}
@@ -3181,12 +3868,12 @@ class CalibrateFinsDialog(QDialog):
         self.fin_dict = {
             1: "top_fin_offset",
             2: "right_fin_offset",
-            3: "left_fin_offset"
+            3: "left_fin_offset",
         }
         self.fin_dict_to_label = {
             "top_fin_offset": "Top Fin",
             "right_fin_offset": "Right Fin",
-            "left_fin_offset": "Left Fin"
+            "left_fin_offset": "Left Fin",
         }
         self.on_slider_change = on_slider_change  # <-- store callback
         layout = QVBoxLayout()
@@ -3211,9 +3898,13 @@ class CalibrateFinsDialog(QDialog):
                 fin_slider = QSlider(Qt.Orientation.Horizontal)
                 fin_slider.setMinimum(-180)
                 fin_slider.setMaximum(180)
-                
-                if not vehicle_init_params: fin_slider.setValue(0)
-                else: fin_slider.setValue(int(vehicle_init_params[vehicle_num][self.fin_dict[i]]))
+
+                if not vehicle_init_params:
+                    fin_slider.setValue(0)
+                else:
+                    fin_slider.setValue(
+                        int(vehicle_init_params[vehicle_num][self.fin_dict[i]])
+                    )
 
                 fin_slider.setTickInterval(1)
                 # moves one tick with the arrows
@@ -3224,11 +3915,15 @@ class CalibrateFinsDialog(QDialog):
                 row.addWidget(fin_slider)
                 value_label = QLabel(str(fin_slider.value()))
                 value_label.setStyleSheet(f"color: {text_color};")
-                fin_slider.valueChanged.connect(lambda val, lbl=value_label: lbl.setText(str(val)))
+                fin_slider.valueChanged.connect(
+                    lambda val, lbl=value_label: lbl.setText(str(val))
+                )
 
                 if self.on_slider_change:
                     fin_slider.valueChanged.connect(
-                        lambda _, vnum=vehicle_num, tab=name: self._handle_slider_change(vnum, tab, self.pub_types[vehicle_num])
+                        lambda _, vnum=vehicle_num, tab=name: self._handle_slider_change(
+                            vnum, tab, self.pub_types[vehicle_num]
+                        )
                     )
                 row.addWidget(value_label)
                 content_layout.addLayout(row)
@@ -3244,8 +3939,16 @@ class CalibrateFinsDialog(QDialog):
 
             self.make_exclusive(cb, cb2)
 
-            cb.stateChanged.connect(lambda state, vnum=vehicle_num: self.set_pub_type(vnum, 1) if state else None)
-            cb2.stateChanged.connect(lambda state, vnum=vehicle_num: self.set_pub_type(vnum, 0) if state else None)
+            cb.stateChanged.connect(
+                lambda state, vnum=vehicle_num: (
+                    self.set_pub_type(vnum, 1) if state else None
+                )
+            )
+            cb2.stateChanged.connect(
+                lambda state, vnum=vehicle_num: (
+                    self.set_pub_type(vnum, 0) if state else None
+                )
+            )
 
             content_layout.addWidget(cb)
             content_layout.addWidget(cb2)
@@ -3268,8 +3971,12 @@ class CalibrateFinsDialog(QDialog):
         """
         Ensures that only one of the two checkboxes is checked at a time (exclusive selection).
         """
-        box1.stateChanged.connect(lambda state: box2.setChecked(False) if state else box2.setChecked(True))
-        box2.stateChanged.connect(lambda state: box1.setChecked(False) if state else box1.setChecked(True))
+        box1.stateChanged.connect(
+            lambda state: box2.setChecked(False) if state else box2.setChecked(True)
+        )
+        box2.stateChanged.connect(
+            lambda state: box1.setChecked(False) if state else box1.setChecked(True)
+        )
 
     def set_pub_type(self, vehicle_num, value):
         """
@@ -3287,7 +3994,7 @@ class CalibrateFinsDialog(QDialog):
             values = [slider.value() for slider in self.fin_sliders[tab_name]]
             self.on_slider_change(vehicle_num, values, pub_type)
 
-    def validate_and_accept(self): 
+    def validate_and_accept(self):
         """
         Accepts the dialog (no additional validation).
         """
@@ -3303,6 +4010,7 @@ class CalibrateFinsDialog(QDialog):
             states[tab_name[-1]] = [slider.value() for slider in sliders]
         return states
 
+
 class CalibrateFinsWorker(QThread):
     """
     Worker thread for loading vehicle kinematics parameters for fin calibration.
@@ -3314,8 +4022,12 @@ class CalibrateFinsWorker(QThread):
         load_vehicle_kinematics_params (callable): Function to load params.
         create_new_param_file (callable): Function to create new param file.
     """
+
     finished = pyqtSignal(dict, dict, list, list)
-    def __init__(self, selected_vehicles, load_vehicle_kinematics_params, create_new_param_file):
+
+    def __init__(
+        self, selected_vehicles, load_vehicle_kinematics_params, create_new_param_file
+    ):
         super().__init__()
         self.selected_vehicles = selected_vehicles
         self.load_vehicle_kinematics_params = load_vehicle_kinematics_params
@@ -3333,21 +4045,30 @@ class CalibrateFinsWorker(QThread):
         for i in self.selected_vehicles:
             vehicle_params, base_params = self.load_vehicle_kinematics_params(i)
             params_found_dict[i] = (vehicle_params, base_params)
-            if vehicle_params is not None: 
+            if vehicle_params is not None:
                 vehicle_params_dict[i] = vehicle_params
-                if base_params is None: self.create_new_param_file(i)
-            elif base_params is not None: vehicle_params_dict[i] = base_params
-            else: 
+                if base_params is None:
+                    self.create_new_param_file(i)
+            elif base_params is not None:
+                vehicle_params_dict[i] = base_params
+            else:
                 self.create_new_param_file(i)
                 vehicle_params, base_params = self.load_vehicle_kinematics_params(i)
-                if base_params: vehicle_params_dict[i] = base_params
+                if base_params:
+                    vehicle_params_dict[i] = base_params
 
         for vehicle_id, params in params_found_dict.items():
             if params[0] is None:
                 vehicle_params_problems.append(vehicle_id)
             if params[1] is None:
                 base_params_problems.append(vehicle_id)
-        self.finished.emit(vehicle_params_dict, params_found_dict, base_params_problems, vehicle_params_problems)
+        self.finished.emit(
+            vehicle_params_dict,
+            params_found_dict,
+            base_params_problems,
+            vehicle_params_problems,
+        )
+
 
 class LoadingDialog(QDialog):
     """
@@ -3360,12 +4081,21 @@ class LoadingDialog(QDialog):
         background_color (str): Background color for the dialog.
         text_color (str): Text color for the dialog.
     """
-    def __init__(self, message="Loading, please wait...", parent=None, background_color="#222", text_color="#fff"):
+
+    def __init__(
+        self,
+        message="Loading, please wait...",
+        parent=None,
+        background_color="#222",
+        text_color="#fff",
+    ):
         super().__init__(parent)
         self.setWindowTitle("Please Wait")
         self.setModal(True)
         self.setFixedSize(250, 100)
-        self.setStyleSheet(f"background-color: {background_color}; color: {text_color};")
+        self.setStyleSheet(
+            f"background-color: {background_color}; color: {text_color};"
+        )
         layout = QVBoxLayout()
         label = QLabel(message)
         label.setAlignment(Qt.AlignmentFlag.AlignCenter)

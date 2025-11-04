@@ -4,7 +4,6 @@ holoocean:
       draw_arrow: false
       show_viewport: true
       relative_path: false
-      scenario_path: '/home/ue4/sim_config/torpedo_3fin.json'  # Path in the container
+      scenario_path: "/home/ue4/sim_config/torpedo_3fin.json" # Path in the container
       publish_commands: true
-      # render_quality: 0     # Lowering render quality improves performance. Known bug that it overrides given FPS when this parameter is set. 
-      
+      # render_quality: 0     # Lowering render quality improves performance. Known bug that it overrides given FPS when this parameter is set.

@@ -8,50 +8,46 @@ import math
 
 class UCommandBridge(Node):
     def __init__(self):
-        super().__init__('ucommand_bridge')
+        super().__init__("ucommand_bridge")
 
         # Declare parameters
-        self.declare_parameter('frost_vehicle', 'coug1')
-        self.declare_parameter('holoocean_vehicle', 'auv0')
-        self.declare_parameter('fin_scalar', 1.0)
-        self.declare_parameter('publish_thruster', False)
+        self.declare_parameter("frost_vehicle", "coug1")
+        self.declare_parameter("holoocean_vehicle", "auv0")
+        self.declare_parameter("fin_scalar", 1.0)
+        self.declare_parameter("publish_thruster", False)
 
         # Get parameter values
-        frost_vehicle = self.get_parameter('frost_vehicle').get_parameter_value().string_value
-        holoocean_vehicle = self.get_parameter('holoocean_vehicle').get_parameter_value().string_value
-        self.fin_scalar = self.get_parameter('fin_scalar').get_parameter_value().double_value
-        self.publish_thruster = self.get_parameter('publish_thruster').get_parameter_value().bool_value
+        frost_vehicle = (
+            self.get_parameter("frost_vehicle").get_parameter_value().string_value
+        )
+        holoocean_vehicle = (
+            self.get_parameter("holoocean_vehicle").get_parameter_value().string_value
+        )
+        self.fin_scalar = (
+            self.get_parameter("fin_scalar").get_parameter_value().double_value
+        )
+        self.publish_thruster = (
+            self.get_parameter("publish_thruster").get_parameter_value().bool_value
+        )
 
         # Construct topic names from parameters
-        frost_topic = f'/{frost_vehicle}/controls/command'
-        holoocean_topic = f'/holoocean/{holoocean_vehicle}/ControlCommand'
+        frost_topic = f"/{frost_vehicle}/controls/command"
+        holoocean_topic = f"/holoocean/{holoocean_vehicle}/ControlCommand"
 
         # Subscriptions
         self.frost_sub = self.create_subscription(
-            UCommand,
-            frost_topic,
-            self.frost_callback,
-            10
+            UCommand, frost_topic, self.frost_callback, 10
         )
 
         self.holoocean_sub = self.create_subscription(
-            ControlCommand,
-            holoocean_topic,
-            self.holoocean_callback,
-            10
+            ControlCommand, holoocean_topic, self.holoocean_callback, 10
         )
 
         # Publishers
-        self.frost_pub = self.create_publisher(
-            UCommand,
-            frost_topic,
-            10
-        )
+        self.frost_pub = self.create_publisher(UCommand, frost_topic, 10)
 
         self.holoocean_pub = self.create_publisher(
-            ControlCommand,
-            "/holoocean/command/control",
-            10
+            ControlCommand, "/holoocean/command/control", 10
         )
 
     def frost_callback(self, msg: UCommand):
@@ -64,16 +60,16 @@ class UCommandBridge(Node):
 
         # Thruster percentage directly used
         # TODO map thruster values from 0-100 to 0-1500 rpm which is not linear
-        thruster = float(msg.thruster) * 15 
+        thruster = float(msg.thruster) * 15
 
         # Pack into CommandControl message
         control_msg = ControlCommand()
         control_msg.header = Header()
         control_msg.header.stamp = self.get_clock().now().to_msg()
-        control_msg.header.frame_id = self.get_parameter('holoocean_vehicle').get_parameter_value().string_value
+        control_msg.header.frame_id = (
+            self.get_parameter("holoocean_vehicle").get_parameter_value().string_value
+        )
         control_msg.cs = fins_rad + [thruster]
-
-
 
         self.holoocean_pub.publish(control_msg)
         # self.get_logger().info("Forwarded to holoocean control/command")
@@ -94,7 +90,9 @@ class UCommandBridge(Node):
 
         # Thruster: only publish if enabled
 
-        u_cmd_msg.thruster = int(msg.cs[3]) if (self.publish_thruster and len(msg.cs) >= 4) else 0
+        u_cmd_msg.thruster = (
+            int(msg.cs[3]) if (self.publish_thruster and len(msg.cs) >= 4) else 0
+        )
 
         # TODO: Need to figure out how to handle when running holoocean commands
         # self.frost_pub.publish(u_cmd_msg)

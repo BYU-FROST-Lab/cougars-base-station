@@ -2,14 +2,11 @@
 #
 # ROS PARAMETER VALUES FOR ALL VEHICLES AND BASE STATION
 
-
 /**:
   ros__parameters:
     vehicle_ID: 2
 
-
 coug2:
-
   battery_sub:
     ros__parameters:
       critical_voltage: 14.0 # shutdown voltage in volts (safety check)
@@ -32,8 +29,8 @@ coug2:
       heading_kd: 0.0
       heading_min_output: -35.0 # minimum fin angle from center (-25.0 from advice from NSWC PCD)
       heading_max_output: 35.0 # maximum fin angle from center (25.0 from advice from NSWC PCD)
-      wn_d_z: 0.3    #LP filter desired natural frequency for depth
-      wn_d_theta: 0.15    #LP filter desired natural frequency for pitch
+      wn_d_z: 0.3 #LP filter desired natural frequency for depth
+      wn_d_theta: 0.15 #LP filter desired natural frequency for pitch
       outer_loop_threshold: 2.5
       saturation_offset: 1.7
       depth_from_bottom: false
@@ -44,7 +41,6 @@ coug2:
       deepest_safe_depth: -2.0 #negative is deeper!
       critical_voltage: 14.0
       monitor_depth: false
-      
 
   coug_kinematics:
     ros__parameters:
@@ -86,15 +82,14 @@ coug2:
       state_1_depth: 0.0 # in meters (positive is deeper)
       state_1_heading: 0.0 # in degrees
       state_1_speed: 20.0 # TODO: add here
-      state_2_count: 45  # time spent in state 2 (in intervals based on command_timer_period)
+      state_2_count: 45 # time spent in state 2 (in intervals based on command_timer_period)
       state_2_depth: 1.5 # in meters (positive is deeper)
       state_2_heading: 0.0 # in degrees
       state_2_speed: 35.0 # TODO: add here
-      state_3_count: 40  # time spent in state 3 (in intervals based on command_timer_period)
+      state_3_count: 40 # time spent in state 3 (in intervals based on command_timer_period)
       state_3_depth: 0.0 # in meters (positive is deeper)
       state_3_heading: -180.0 # in degrees
       state_3_speed: 35.0 # TODO: add here
-
 
   fins_manual:
     ros__parameters:
@@ -110,7 +105,8 @@ coug2:
       # commands: "[20, 0, 0, 0, 0],[100, 0, 0, 0, 40]"
       ###### SYSTEM ID TEST
       command_timer_period: 0.1
-      commands: "[100, 0, 0, 0, 0],[20, 0, 0, 0, 60], [5, 0, 0, 0, 0], [10, 0, 0,
+      commands:
+        "[100, 0, 0, 0, 0],[20, 0, 0, 0, 60], [5, 0, 0, 0, 0], [10, 0, 0,
         0, 25], [30, 20, 0, 0, 25], [5, 0, 0, 0, 25], [30, 0, 20, -20, 25], [30, 0,
         -20, 20, 25], [5, 0, 0, 0, 25], [40, 20, -20, -20, 25], [20, 0, 0, 0, 0],
         [10, 0, 0, 0, -20]"
@@ -122,5 +118,3 @@ coug2:
     ros__parameters:
       modem.robot_orientation.translation: [0.0, 0.0, 0.0]
       modem.robot_orientation.orientation: [0.0, 0.0, 0.0, 1.0]
-
-

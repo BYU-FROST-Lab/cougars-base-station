@@ -1,20 +1,19 @@
-#include <rclcpp/rclcpp.hpp>
-#include <base_station_interfaces/msg/u_command_base.hpp>
 #include <base_station_interfaces/msg/console_log.hpp>
-#include <std_msgs/msg/string.hpp>
-#include <signal.h>
-#include <termios.h>
-#include <stdio.h>
-#include <unistd.h>
+#include <base_station_interfaces/msg/u_command_base.hpp>
 #include <cmath>
+#include <rclcpp/rclcpp.hpp>
+#include <signal.h>
+#include <std_msgs/msg/string.hpp>
+#include <stdio.h>
 #include <string>
+#include <termios.h>
 #include <thread>
+#include <unistd.h>
 
 #define KEYCODE_SPACE 0x20
 #define KEYCODE_DOT 0x2E
 
-class TeleopCommand : public rclcpp::Node
-{
+class TeleopCommand : public rclcpp::Node {
 public:
   TeleopCommand();
   void keyLoop();
@@ -24,35 +23,37 @@ private:
   void keyPressCallback(const std_msgs::msg::String::SharedPtr msg);
   void processKey(char key);
   void publishCommand();
-  void publishConsoleLog(const std::string& message, int vehicle_id = 0);
-  void timerCallback();  // New timer callback for rate-limited publishing
+  void publishConsoleLog(const std::string &message, int vehicle_id = 0);
+  void timerCallback(); // New timer callback for rate-limited publishing
 
-  double fin1_, fin2_, fin3_, max_fin_value_; 
+  double fin1_, fin2_, fin3_, max_fin_value_;
   int thruster_value_;
   std::string vehicle_name_;
   int vehicle_id_;
   std::vector<int64_t> vehicles_in_mission_;
   size_t current_vehicle_index_;
   base_station_interfaces::msg::UCommandBase last_command_msg_;
-  rclcpp::Publisher<base_station_interfaces::msg::UCommandBase>::SharedPtr command_pub_;
-  rclcpp::Publisher<base_station_interfaces::msg::ConsoleLog>::SharedPtr console_pub_;
+  rclcpp::Publisher<base_station_interfaces::msg::UCommandBase>::SharedPtr
+      command_pub_;
+  rclcpp::Publisher<base_station_interfaces::msg::ConsoleLog>::SharedPtr
+      console_pub_;
   rclcpp::Subscription<std_msgs::msg::String>::SharedPtr keypress_sub_;
-  
+
   // Rate limiting variables
   rclcpp::TimerBase::SharedPtr publish_timer_;
-  bool command_dirty_;  // Flag to track if we need to publish
-  double publish_rate_hz_;  // Configurable publish rate
+  bool command_dirty_;     // Flag to track if we need to publish
+  double publish_rate_hz_; // Configurable publish rate
   bool thruster_enabled_;  // Flag to enable/disable thruster
 };
 
-TeleopCommand::TeleopCommand() :
-  Node("teleop_command"),
-  fin1_(0.0), fin2_(0.0), fin3_(0.0), current_vehicle_index_(0), command_dirty_(false), thruster_enabled_(false)
-{
+TeleopCommand::TeleopCommand()
+    : Node("teleop_command"), fin1_(0.0), fin2_(0.0), fin3_(0.0),
+      current_vehicle_index_(0), command_dirty_(false),
+      thruster_enabled_(false) {
   declare_parameter("max_fin_value", 35.0);
   declare_parameter("thruster_value", 800);
   declare_parameter("vehicles_in_mission", std::vector<int64_t>{1, 2, 5});
-  declare_parameter("publish_rate_hz", 5.0);  // Default 5 Hz publish rate
+  declare_parameter("publish_rate_hz", 5.0); // Default 5 Hz publish rate
 
   get_parameter("max_fin_value", max_fin_value_);
   get_parameter("thruster_value", thruster_value_);
@@ -63,20 +64,21 @@ TeleopCommand::TeleopCommand() :
   if (!vehicles_in_mission_.empty()) {
     vehicle_id_ = vehicles_in_mission_[current_vehicle_index_];
   } else {
-    vehicle_id_ = 1; // Default fallback
+    vehicle_id_ = 1;            // Default fallback
     vehicles_in_mission_ = {1}; // Ensure we have at least one vehicle
   }
 
-  command_pub_ = create_publisher<base_station_interfaces::msg::UCommandBase>("/keyboard_controls", 10);
+  command_pub_ = create_publisher<base_station_interfaces::msg::UCommandBase>(
+      "/keyboard_controls", 10);
 
   // Publisher for console log messages to GUI
-  console_pub_ = create_publisher<base_station_interfaces::msg::ConsoleLog>("console_log", 10);
+  console_pub_ = create_publisher<base_station_interfaces::msg::ConsoleLog>(
+      "console_log", 10);
 
   // Subscribe to GUI key press events
   keypress_sub_ = create_subscription<std_msgs::msg::String>(
-    "/gui_keypress", 10,
-    std::bind(&TeleopCommand::keyPressCallback, this, std::placeholders::_1)
-  );
+      "/gui_keypress", 10,
+      std::bind(&TeleopCommand::keyPressCallback, this, std::placeholders::_1));
 
   // Initialize last command message
   last_command_msg_.vehicle_id = vehicle_id_;
@@ -84,69 +86,67 @@ TeleopCommand::TeleopCommand() :
   last_command_msg_.ucommand.header.frame_id = vehicle_name_;
   last_command_msg_.vehicle_id = vehicle_id_;
   last_command_msg_.ucommand.fin = {
-    -fin1_,  // Send degrees directly (negated for proper direction)
-     fin2_,  // Send degrees directly
-    -fin3_,  // Send degrees directly (negated for proper direction)
-     0.0     // 4th fin (if needed)
+      -fin1_, // Send degrees directly (negated for proper direction)
+      fin2_,  // Send degrees directly
+      -fin3_, // Send degrees directly (negated for proper direction)
+      0.0     // 4th fin (if needed)
   };
   last_command_msg_.ucommand.thruster = static_cast<double>(thruster_value_);
   last_command_msg_.thruster_enabled = thruster_enabled_;
 
-
   // Create timer for rate-limited publishing
   int timer_period_ms = static_cast<int>(1000.0 / publish_rate_hz_);
-  publish_timer_ = create_wall_timer(
-    std::chrono::milliseconds(timer_period_ms),
-    std::bind(&TeleopCommand::timerCallback, this)
-  );
+  publish_timer_ =
+      create_wall_timer(std::chrono::milliseconds(timer_period_ms),
+                        std::bind(&TeleopCommand::timerCallback, this));
 
-  RCLCPP_INFO(get_logger(), "Initialized teleop for vehicle %d with publish rate %.1f Hz, thruster %s", 
-              vehicle_id_, publish_rate_hz_, thruster_enabled_ ? "ENABLED" : "DISABLED");
-  
+  RCLCPP_INFO(get_logger(),
+              "Initialized teleop for vehicle %d with publish rate %.1f Hz, "
+              "thruster %s",
+              vehicle_id_, publish_rate_hz_,
+              thruster_enabled_ ? "ENABLED" : "DISABLED");
+
   // Send initial console message to GUI
-  publishConsoleLog("Teleop node initialized for vehicle " + std::to_string(vehicle_id_) + 
-                   ", thruster " + (thruster_enabled_ ? "ENABLED" : "DISABLED"));
+  publishConsoleLog("Teleop node initialized for vehicle " +
+                    std::to_string(vehicle_id_) + ", thruster " +
+                    (thruster_enabled_ ? "ENABLED" : "DISABLED"));
 }
 
 int kfd = 0;
 struct termios cooked, raw;
 
-void quit(int sig)
-{
+void quit(int sig) {
   (void)sig;
   tcsetattr(kfd, TCSANOW, &cooked);
   rclcpp::shutdown();
   exit(0);
 }
 
-int main(int argc, char** argv)
-{
+int main(int argc, char **argv) {
   rclcpp::init(argc, argv);
   auto teleop_command = std::make_shared<TeleopCommand>();
 
   signal(SIGINT, quit);
 
   // Start keyboard loop in a separate thread
-  std::thread keyboard_thread([teleop_command]() {
-    teleop_command->keyLoop();
-  });
+  std::thread keyboard_thread(
+      [teleop_command]() { teleop_command->keyLoop(); });
 
   // Spin ROS to handle callbacks (including keypress subscriber)
   rclcpp::spin(teleop_command);
-  
+
   // Clean up
   keyboard_thread.join();
   rclcpp::shutdown();
   return 0;
 }
 
-void TeleopCommand::keyLoop()
-{
+void TeleopCommand::keyLoop() {
   char c;
 
   tcgetattr(kfd, &cooked);
   memcpy(&raw, &cooked, sizeof(struct termios));
-  raw.c_lflag &=~ (ICANON | ECHO);
+  raw.c_lflag &= ~(ICANON | ECHO);
   raw.c_cc[VEOL] = 1;
   raw.c_cc[VEOF] = 2;
   tcsetattr(kfd, TCSANOW, &raw);
@@ -160,14 +160,13 @@ void TeleopCommand::keyLoop()
   puts("Q: Toggle thruster enable/disable");
   puts("E: Switch vehicle");
   puts("Ctrl+C to quit");
-  puts("NOTE: This node also accepts key presses from the GUI via ROS messages");
-  
+  puts(
+      "NOTE: This node also accepts key presses from the GUI via ROS messages");
+
   RCLCPP_INFO(get_logger(), "Currently controlling vehicle %d", vehicle_id_);
 
-  for(;;)
-  {
-    if(read(kfd, &c, 1) < 0)
-    {
+  for (;;) {
+    if (read(kfd, &c, 1) < 0) {
       perror("read():");
       exit(-1);
     }
@@ -176,40 +175,38 @@ void TeleopCommand::keyLoop()
     if (c == 0x1B) // ESC
     {
       char seq[2];
-      if (read(kfd, &seq[0], 1) != 1) continue;
-      if (read(kfd, &seq[1], 1) != 1) continue;
-      
-      if (seq[0] == '[')
-      {
-        switch(seq[1])
-        {
-          case 'A': // Up arrow
-            RCLCPP_DEBUG(get_logger(), "UP - Fins up");
-            fin2_ = std::min(max_fin_value_, fin2_ + 2.0);
-            fin3_ = std::min(max_fin_value_, fin3_ + 2.0);
-            command_dirty_ = true;  // Mark for publishing
-            break;
-          case 'B': // Down arrow
-            RCLCPP_DEBUG(get_logger(), "DOWN - Fins down");
-            fin2_ = std::max(-max_fin_value_, fin2_ - 2.0);
-            fin3_ = std::max(-max_fin_value_, fin3_ - 2.0);
-            command_dirty_ = true;  // Mark for publishing
-            break;
-          case 'C': // Right arrow
-            RCLCPP_DEBUG(get_logger(), "RIGHT - Turn right");
-            fin1_ = std::min(max_fin_value_, fin1_ + 2.0);
-            command_dirty_ = true;  // Mark for publishing
-            break;
-          case 'D': // Left arrow
-            RCLCPP_DEBUG(get_logger(), "LEFT - Turn left");
-            fin1_ = std::max(-max_fin_value_, fin1_ - 2.0);
-            command_dirty_ = true;  // Mark for publishing
-            break;
+      if (read(kfd, &seq[0], 1) != 1)
+        continue;
+      if (read(kfd, &seq[1], 1) != 1)
+        continue;
+
+      if (seq[0] == '[') {
+        switch (seq[1]) {
+        case 'A': // Up arrow
+          RCLCPP_DEBUG(get_logger(), "UP - Fins up");
+          fin2_ = std::min(max_fin_value_, fin2_ + 2.0);
+          fin3_ = std::min(max_fin_value_, fin3_ + 2.0);
+          command_dirty_ = true; // Mark for publishing
+          break;
+        case 'B': // Down arrow
+          RCLCPP_DEBUG(get_logger(), "DOWN - Fins down");
+          fin2_ = std::max(-max_fin_value_, fin2_ - 2.0);
+          fin3_ = std::max(-max_fin_value_, fin3_ - 2.0);
+          command_dirty_ = true; // Mark for publishing
+          break;
+        case 'C': // Right arrow
+          RCLCPP_DEBUG(get_logger(), "RIGHT - Turn right");
+          fin1_ = std::min(max_fin_value_, fin1_ + 2.0);
+          command_dirty_ = true; // Mark for publishing
+          break;
+        case 'D': // Left arrow
+          RCLCPP_DEBUG(get_logger(), "LEFT - Turn left");
+          fin1_ = std::max(-max_fin_value_, fin1_ - 2.0);
+          command_dirty_ = true; // Mark for publishing
+          break;
         }
       }
-    }
-    else
-    {
+    } else {
       // Handle regular keys
       // Use the common key processing function
       processKey(c);
@@ -217,11 +214,11 @@ void TeleopCommand::keyLoop()
   }
 }
 
-void TeleopCommand::switchVehicle()
-{
+void TeleopCommand::switchVehicle() {
   // Send zeros to the current vehicle before switching
-  RCLCPP_INFO(get_logger(), "Sending zeros to vehicle %d before switching", vehicle_id_);
-  
+  RCLCPP_INFO(get_logger(), "Sending zeros to vehicle %d before switching",
+              vehicle_id_);
+
   // Create a zero command message for the current vehicle
   base_station_interfaces::msg::UCommandBase zero_command_msg;
   zero_command_msg.ucommand.header.stamp = get_clock()->now();
@@ -229,143 +226,155 @@ void TeleopCommand::switchVehicle()
   zero_command_msg.vehicle_id = vehicle_id_;
   zero_command_msg.ucommand.fin = {0.0, 0.0, 0.0, 0.0};
   zero_command_msg.ucommand.thruster = 0.0;
-  
+
   // Publish the zero command to the current vehicle
   command_pub_->publish(zero_command_msg);
-  
+
   // Now switch to the next vehicle
-  current_vehicle_index_ = (current_vehicle_index_ + 1) % vehicles_in_mission_.size();
+  current_vehicle_index_ =
+      (current_vehicle_index_ + 1) % vehicles_in_mission_.size();
   vehicle_id_ = vehicles_in_mission_[current_vehicle_index_];
   last_command_msg_.vehicle_id = vehicle_id_;
-  
+
   // Reset local control values to zero for the new vehicle
   fin1_ = 0.0;
   fin2_ = 0.0;
   fin3_ = 0.0;
   thruster_value_ = 0; // Reset to default thruster value
-  
-  RCLCPP_INFO(get_logger(), "Switched to controlling vehicle %d (fins and thruster reset to defaults)", vehicle_id_);
+
+  RCLCPP_INFO(get_logger(),
+              "Switched to controlling vehicle %d (fins and thruster reset to "
+              "defaults)",
+              vehicle_id_);
 }
 
-void TeleopCommand::timerCallback()
-{
+void TeleopCommand::timerCallback() {
   // Only publish if there have been changes since last publish
   if (command_dirty_) {
     publishCommand();
-    command_dirty_ = false;  // Reset the flag
+    command_dirty_ = false; // Reset the flag
   }
 }
 
-void TeleopCommand::publishCommand()
-{
+void TeleopCommand::publishCommand() {
   last_command_msg_.ucommand.header.stamp = get_clock()->now();
   last_command_msg_.ucommand.header.frame_id = vehicle_name_;
   last_command_msg_.vehicle_id = vehicle_id_;
   last_command_msg_.ucommand.fin = {
-    -fin1_,  // Send degrees directly (negated for proper direction)
-     fin2_,  // Send degrees directly
-    -fin3_   // Send degrees directly (negated for proper direction)
+      -fin1_, // Send degrees directly (negated for proper direction)
+      fin2_,  // Send degrees directly
+      -fin3_  // Send degrees directly (negated for proper direction)
   };
   // Only send thruster value if thruster is enabled, otherwise send 0
-  last_command_msg_.ucommand.thruster = thruster_enabled_ ? static_cast<double>(thruster_value_) : 0.0;
+  last_command_msg_.ucommand.thruster =
+      thruster_enabled_ ? static_cast<double>(thruster_value_) : 0.0;
   last_command_msg_.thruster_enabled = thruster_enabled_;
 
   command_pub_->publish(last_command_msg_);
-  
+
   int effective_thruster = thruster_enabled_ ? thruster_value_ : 0;
-  RCLCPP_INFO(get_logger(), "Vehicle %d - Fins: [%.1f, %.1f, %.1f] deg, Thruster: %d %s", 
+  RCLCPP_INFO(get_logger(),
+              "Vehicle %d - Fins: [%.1f, %.1f, %.1f] deg, Thruster: %d %s",
               vehicle_id_, fin1_, fin2_, fin3_, effective_thruster,
               thruster_enabled_ ? "(ENABLED)" : "(DISABLED)");
-  
+
   // Send console log to GUI
-  publishConsoleLog("Vehicle " + std::to_string(vehicle_id_) + 
-                   " - Fins: [" + std::to_string(fin1_) + ", " + 
-                   std::to_string(fin2_) + ", " + std::to_string(fin3_) + 
-                   "] deg, Thruster: " + std::to_string(effective_thruster) +
-                   (thruster_enabled_ ? " (ENABLED)" : " (DISABLED)"), vehicle_id_);
+  publishConsoleLog("Vehicle " + std::to_string(vehicle_id_) + " - Fins: [" +
+                        std::to_string(fin1_) + ", " + std::to_string(fin2_) +
+                        ", " + std::to_string(fin3_) + "] deg, Thruster: " +
+                        std::to_string(effective_thruster) +
+                        (thruster_enabled_ ? " (ENABLED)" : " (DISABLED)"),
+                    vehicle_id_);
 }
 
-void TeleopCommand::keyPressCallback(const std_msgs::msg::String::SharedPtr msg)
-{
+void TeleopCommand::keyPressCallback(
+    const std_msgs::msg::String::SharedPtr msg) {
   // Only process single character messages from ROS
   if (!msg->data.empty() && msg->data.length() == 1) {
     char key = msg->data[0];
-    RCLCPP_DEBUG(get_logger(), "Received key press from GUI: '%c' (0x%02X)", key, static_cast<unsigned char>(key));
+    RCLCPP_DEBUG(get_logger(), "Received key press from GUI: '%c' (0x%02X)",
+                 key, static_cast<unsigned char>(key));
     processKey(key);
   } else if (!msg->data.empty()) {
-    RCLCPP_WARN(get_logger(), "Received multi-character string from GUI: '%s' - ignoring", msg->data.c_str());
+    RCLCPP_WARN(get_logger(),
+                "Received multi-character string from GUI: '%s' - ignoring",
+                msg->data.c_str());
   }
 }
 
-void TeleopCommand::processKey(char key)
-{
-  switch(key) {
-    case 'w':
-    case 'W':
-      RCLCPP_DEBUG(get_logger(), "W - Fins up");
-      fin2_ = std::min(max_fin_value_, fin2_ + 2.0);
-      fin3_ = std::min(max_fin_value_, fin3_ + 2.0);
-      command_dirty_ = true;  // Mark for publishing
-      break;
-    case 's':
-    case 'S':
-      RCLCPP_DEBUG(get_logger(), "S - Fins down");
-      fin2_ = std::max(-max_fin_value_, fin2_ - 2.0);
-      fin3_ = std::max(-max_fin_value_, fin3_ - 2.0);
-      command_dirty_ = true;  // Mark for publishing
-      break;
-    case 'a':
-    case 'A':
-      RCLCPP_DEBUG(get_logger(), "A - Turn left");
-      fin1_ = std::max(-max_fin_value_, fin1_ - 2.0);
-      command_dirty_ = true;  // Mark for publishing
-      break;
-    case 'd':
-    case 'D':
-      RCLCPP_DEBUG(get_logger(), "D - Turn right");
-      fin1_ = std::min(max_fin_value_, fin1_ + 2.0);
-      command_dirty_ = true;  // Mark for publishing
-      break;
-    case ' ': // Space key
-      thruster_value_ = std::min(100, thruster_value_ + 5);
-      RCLCPP_DEBUG(get_logger(), "Spacebar - Increased thruster to %d", thruster_value_);
-      command_dirty_ = true;  // Mark for publishing
-      break;
-    case 'r':
-    case 'R':
-      thruster_value_ = std::max(0, thruster_value_ - 5);
-      RCLCPP_DEBUG(get_logger(), "R - Decreased thruster to %d", thruster_value_);
-      command_dirty_ = true;  // Mark for publishing
-      break;
-    case '.':
-    case ',':
-    case '-':
-    case '_':
-      thruster_value_ = std::max(0, thruster_value_ - 5);
-      RCLCPP_DEBUG(get_logger(), "Decrease key - Decreased thruster to %d", thruster_value_);
-      command_dirty_ = true;  // Mark for publishing
-      break;
-    case 'e':
-    case 'E':
-      switchVehicle();
-      publishConsoleLog("Switched to controlling vehicle " + std::to_string(vehicle_id_));
-      break;
-    case 'q':
-    case 'Q':
-      thruster_enabled_ = !thruster_enabled_;  // Toggle thruster enable
-      RCLCPP_DEBUG(get_logger(), "Thruster %s", thruster_enabled_ ? "ENABLED" : "DISABLED");
-      publishConsoleLog("Thruster " + std::string(thruster_enabled_ ? "ENABLED" : "DISABLED") + 
-                       " for vehicle " + std::to_string(vehicle_id_));
-      command_dirty_ = true;  // Mark for publishing to update thruster state
-      break;
-    default:
-      // Ignore unknown keys
-      break;
+void TeleopCommand::processKey(char key) {
+  switch (key) {
+  case 'w':
+  case 'W':
+    RCLCPP_DEBUG(get_logger(), "W - Fins up");
+    fin2_ = std::min(max_fin_value_, fin2_ + 2.0);
+    fin3_ = std::min(max_fin_value_, fin3_ + 2.0);
+    command_dirty_ = true; // Mark for publishing
+    break;
+  case 's':
+  case 'S':
+    RCLCPP_DEBUG(get_logger(), "S - Fins down");
+    fin2_ = std::max(-max_fin_value_, fin2_ - 2.0);
+    fin3_ = std::max(-max_fin_value_, fin3_ - 2.0);
+    command_dirty_ = true; // Mark for publishing
+    break;
+  case 'a':
+  case 'A':
+    RCLCPP_DEBUG(get_logger(), "A - Turn left");
+    fin1_ = std::max(-max_fin_value_, fin1_ - 2.0);
+    command_dirty_ = true; // Mark for publishing
+    break;
+  case 'd':
+  case 'D':
+    RCLCPP_DEBUG(get_logger(), "D - Turn right");
+    fin1_ = std::min(max_fin_value_, fin1_ + 2.0);
+    command_dirty_ = true; // Mark for publishing
+    break;
+  case ' ': // Space key
+    thruster_value_ = std::min(100, thruster_value_ + 5);
+    RCLCPP_DEBUG(get_logger(), "Spacebar - Increased thruster to %d",
+                 thruster_value_);
+    command_dirty_ = true; // Mark for publishing
+    break;
+  case 'r':
+  case 'R':
+    thruster_value_ = std::max(0, thruster_value_ - 5);
+    RCLCPP_DEBUG(get_logger(), "R - Decreased thruster to %d", thruster_value_);
+    command_dirty_ = true; // Mark for publishing
+    break;
+  case '.':
+  case ',':
+  case '-':
+  case '_':
+    thruster_value_ = std::max(0, thruster_value_ - 5);
+    RCLCPP_DEBUG(get_logger(), "Decrease key - Decreased thruster to %d",
+                 thruster_value_);
+    command_dirty_ = true; // Mark for publishing
+    break;
+  case 'e':
+  case 'E':
+    switchVehicle();
+    publishConsoleLog("Switched to controlling vehicle " +
+                      std::to_string(vehicle_id_));
+    break;
+  case 'q':
+  case 'Q':
+    thruster_enabled_ = !thruster_enabled_; // Toggle thruster enable
+    RCLCPP_DEBUG(get_logger(), "Thruster %s",
+                 thruster_enabled_ ? "ENABLED" : "DISABLED");
+    publishConsoleLog("Thruster " +
+                      std::string(thruster_enabled_ ? "ENABLED" : "DISABLED") +
+                      " for vehicle " + std::to_string(vehicle_id_));
+    command_dirty_ = true; // Mark for publishing to update thruster state
+    break;
+  default:
+    // Ignore unknown keys
+    break;
   }
 }
 
-void TeleopCommand::publishConsoleLog(const std::string& message, int vehicle_id)
-{
+void TeleopCommand::publishConsoleLog(const std::string &message,
+                                      int vehicle_id) {
   auto console_msg = base_station_interfaces::msg::ConsoleLog();
   console_msg.message = message;
   console_msg.vehicle_number = vehicle_id;

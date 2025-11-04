@@ -8,16 +8,14 @@
   ros__parameters:
     vehicle_ID: 1
     demo_mode: false
-    
 
 coug1: # Change this to match the vehicle name
-
   battery_sub:
     ros__parameters:
       critical_voltage: 14.0 # shutdown voltage in volts (safety check)
   # modem_ros_node:
-    # ros__parameters:
-      # seatrac_serial_port: "/dev/ttyUSB0"
+  # ros__parameters:
+  # seatrac_serial_port: "/dev/ttyUSB0"
   modem_pinger:
     ros__parameters:
       ping_delay_seconds: 2
@@ -44,8 +42,8 @@ coug1: # Change this to match the vehicle name
       heading_kd: 0.0
       heading_min_output: -45.0 # minimum fin angle from center (-25.0 from advice from NSWC PCD)
       heading_max_output: 45.0 # maximum fin angle from center (25.0 from advice from NSWC PCD)
-      wn_d_z: 0.30    #LP filter desired natural frequency for depth
-      wn_d_theta: 0.15    #LP filter desired natural frequency for pitch
+      wn_d_z: 0.30 #LP filter desired natural frequency for depth
+      wn_d_theta: 0.15 #LP filter desired natural frequency for pitch
       outer_loop_threshold: 2.5
       saturation_offset: 1.7
       depth_from_bottom: false
@@ -62,9 +60,9 @@ coug1: # Change this to match the vehicle name
   coug_kinematics:
     ros__parameters:
       trim_ratio: 0.0 # multiplied by the velocity
-      top_fin_offset: -10.0 # offset in degrees for the top fin 
-      right_fin_offset: 0.0 # offset in degrees port fin 
-      left_fin_offset: -0.0 # offset in degrees starboard fin 
+      top_fin_offset: -10.0 # offset in degrees for the top fin
+      right_fin_offset: 0.0 # offset in degrees port fin
+      left_fin_offset: -0.0 # offset in degrees starboard fin
       demo_mode: false # if true, disables the thruster
       fin_0_direction: 1 # 1 for forward, -1 for reverse
       fin_1_direction: -1 # 1 for forward, -1 for reverse
@@ -120,4 +118,3 @@ coug1: # Change this to match the vehicle name
   #     ####### IN LAB EXAGERRATED TEST
   #     # command_timer_period: 1.0
   #     # commands: "[10, 0, 0, 0, 0],[10, 0, 0, 0, 100], [5, 0, 0, 0, 0], [10, 0, 0, 0, 50], [20, 35, 0, 0, 50], [5, 0, 0, 0, 50], [20, 0, 35, 35, 50], [20, 0, -35, -35, 50], [5, 0, 0, 0, 50], [20, 35, -35, 35, 50], [5, 0, 0, 0, 0]"
-

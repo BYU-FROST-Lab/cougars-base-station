@@ -17,7 +17,7 @@ coug0:
       heading_min_output: -25.0
       look_ahead: 5.0
       pid_timer_period: 80
-      pitch_kd: 0.0     #HEY O
+      pitch_kd: 0.0 #HEY O
       pitch_ki: 0.0
       pitch_kp: 0.0
       pitch_max_output: 25.0
@@ -37,9 +37,10 @@ coug0:
   fins_manual:
     ros__parameters:
       command_timer_period: 0.1
-      commands: '[100, 0, 0, 0, 0],[10, 0, 0, 0, 100], [5, 0, 0, 0, 0], [10, 0, 0,
+      commands:
+        "[100, 0, 0, 0, 0],[10, 0, 0, 0, 100], [5, 0, 0, 0, 0], [10, 0, 0,
         0, 50], [20, 15, 0, 0, 50], [5, 0, 0, 0, 50], [20, 0, 15, 15, 50], [20, 0,
-        -15, -15, 50], [5, 0, 0, 0, 50], [20, 15, -15, 15, 50], [5, 0, 0, 0, 0]'
+        -15, -15, 50], [5, 0, 0, 0, 50], [20, 15, -15, 15, 50], [5, 0, 0, 0, 0]"
   gps_odom:
     ros__parameters:
       origin.altitude: 1367.0
