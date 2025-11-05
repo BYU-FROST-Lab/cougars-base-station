@@ -45,6 +45,7 @@ class MainWindow(QMainWindow):
     safety_status_signal = pyqtSignal(int, object)
     smoothed_output_signal = pyqtSignal(int, object)
     dvl_velocity_signal = pyqtSignal(int, object)
+    current_waypoint_signal = pyqtSignal(int, object)
     depth_data_signal = pyqtSignal(int, object)
     pressure_data_signal = pyqtSignal(int, object)
     battery_data_signal = pyqtSignal(int, object)
@@ -294,6 +295,7 @@ class MainWindow(QMainWindow):
         self.safety_status_signal.connect(self._update_safety_status_information)
         self.smoothed_output_signal.connect(self._update_gui_smoothed_output)
         self.dvl_velocity_signal.connect(self._update_dvl_velocity)
+        self.current_waypoint_signal.connect(self._update_current_waypoint)
         self.depth_data_signal.connect(self.update_depth_data)
         self.pressure_data_signal.connect(self.update_pressure_data)
         self.battery_data_signal.connect(self.update_battery_data)
@@ -2295,6 +2297,20 @@ class MainWindow(QMainWindow):
         self.replace_specific_status_widget(vehicle_number, "XPos")
         self.replace_specific_status_widget(vehicle_number, "YPos")
         self.replace_specific_status_widget(vehicle_number, "Heading")
+
+    def recieve_current_waypoint_message(self, vehicle_number, msg):
+        """
+        Receives a current waypoint message from ROS and emits a signal to update the GUI.
+        Used to update the current waypoint widget for the vehicle.
+        """
+        self.current_waypoint_signal.emit(vehicle_number, msg)
+
+    def _update_current_waypoint(self, vehicle_number, msg):
+        """
+        Updates the current waypoint widget for the specified vehicle based on the received message.
+        """
+        self.feedback_dict["Waypoint"][vehicle_number] = msg.data
+        self.replace_specific_status_widget(vehicle_number, "Waypoint")
 
     def recieve_depth_data_message(self, vehicle_number, msg):
         """
