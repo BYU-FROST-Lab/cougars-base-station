@@ -15,7 +15,7 @@ from rcl_interfaces.srv import SetParameters
 from rcl_interfaces.msg import Parameter, ParameterValue, ParameterType
 
 import time
-from std_msgs.msg import String, Bool
+from std_msgs.msg import Float32, Bool
 from nav_msgs.msg import Odometry
 
 from nav_msgs.msg import Path #used to publish the map viz path
@@ -63,6 +63,15 @@ class GuiNode(Node):
                 10
             )
             setattr(self, f'dvl_vel_subscription{coug_number}', sub)
+
+            # Subscribe to current waypoint messages for each vehicle
+            sub = self.create_subscription(
+                Float32,
+                f'coug{coug_number}/current_waypoint',
+                lambda msg, n=coug_number: window.recieve_current_waypoint_message(n, msg),
+                10
+            )
+            setattr(self, f'current_waypoint_subscription{coug_number}', sub)
 
             # Subscribe to depth data messages for each vehicle
             sub = self.create_subscription(
@@ -122,6 +131,14 @@ class GuiNode(Node):
                 10
             )
             setattr(self, f'coug{coug_number}_fins_controls', pub)
+
+            # Publisher for waypoint commands for each vehicle
+            pub = self.create_publisher(
+                Int32,
+                f'/coug{coug_number}/waypoint/command',
+                10
+            )
+            setattr(self, f'coug{coug_number}_waypoint_pub', pub)
 
             # Client for setting kinematics parameters for each vehicle
             client = self.create_client(
