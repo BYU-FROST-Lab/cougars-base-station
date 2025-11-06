@@ -5,4 +5,5 @@ dvl_msgs/DVLDR dvl_pos
 dvl_msgs/DVL dvl_vel
 sensor_msgs/BatteryState battery_state
 geometry_msgs/PoseWithCovarianceStamped depth_data
+cougars_interfaces/WayPoint waypoint
 sensor_msgs/FluidPressure pressure

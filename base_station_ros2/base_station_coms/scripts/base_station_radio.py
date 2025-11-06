@@ -7,6 +7,7 @@ from base_station_interfaces.msg import Connections, ConsoleLog, Status
 from base_station_interfaces.srv import BeaconId, Init
 from std_msgs.msg import String
 from std_msgs.msg import Int8
+from cougars_interfaces.msg import WayPoint
 import time
 
 
@@ -227,6 +228,7 @@ class RFBridge(Node):
         dvl_pos = data.get('dv', {})
         battery_state = data.get('b', {})
         depth_data = data.get('d', {})
+        waypoint_data = data.get('w', {})
         pressure_data = data.get('p', {})
 
         status = Status()
@@ -244,6 +246,10 @@ class RFBridge(Node):
         status.dvl_pos.yaw = dvl_pos.get('y', 0.0)
         status.battery_state.voltage = battery_state.get('volt', 0.0)
         status.depth_data.pose.pose.position.z = -depth_data.get('de', 0.0)
+        status.waypoint_data.waypoint_num = waypoint_data.get('wp_n', 0)
+        status.waypoint_data.x = waypoint_data.get('x', 0.0)
+        status.waypoint_data.y = waypoint_data.get('y', 0.0)
+        status.waypoint_data.depth = waypoint_data.get('d', 0.0)
         status.pressure.fluid_pressure = pressure_data.get('pres', 0.0)
         self.status_publisher.publish(status)
 

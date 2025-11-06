@@ -10,9 +10,9 @@
 #include "nav_msgs/msg/odometry.hpp"
 #include "sensor_msgs/msg/battery_state.hpp"
 #include "base_station_interfaces/srv/init.hpp"
-
 #include "base_station_coms/coms_protocol.hpp"
 #include "base_station_coms/seatrac_enums.hpp"
+#include "cougars_interfaces/msg/way_point.hpp"
 
 
 #include <iostream>
@@ -137,6 +137,8 @@ public:
                     ros_namespace + "/battery/data", 10);
                 depth_publishers_[vehicle_id] = this->create_publisher<geometry_msgs::msg::PoseWithCovarianceStamped>(
                     ros_namespace + "/depth_data", 10);
+                waypoint_publishers_[vehicle_id] = this->create_publisher<cougars_interfaces::msg::WayPoint>(
+                    ros_namespace + "/current_waypoint", 10);
                 pressure_publishers_[vehicle_id] = this->create_publisher<sensor_msgs::msg::FluidPressure>(
                     ros_namespace + "/pressure/data", 10);
            }
@@ -412,6 +414,7 @@ public:
             dvl_vel_publishers_[vehicle_id]->publish(dvl_vel);
             battery_publishers_[vehicle_id]->publish(battery_state);
             depth_publishers_[vehicle_id]->publish(depth_status);
+            waypoint_publishers_[vehicle_id]->publish(msg->waypoint);
             pressure_publishers_[vehicle_id]->publish(pressure_status);
 
         } else {
@@ -448,6 +451,7 @@ private:
     std::unordered_map<int64_t, rclcpp::Publisher<sensor_msgs::msg::BatteryState>::SharedPtr> battery_publishers_;
     std::unordered_map<int64_t, rclcpp::Publisher<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr> depth_publishers_;
     std::unordered_map<int64_t, rclcpp::Publisher<sensor_msgs::msg::FluidPressure>::SharedPtr> pressure_publishers_;
+    std::unordered_map<int64_t, rclcpp::Publisher<cougars_interfaces::msg::WayPoint>::SharedPtr> waypoint_publishers_;
 
     std::unordered_map<int,bool> radio_connection;
     std::unordered_map<int,bool> modem_connection;

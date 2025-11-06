@@ -2318,8 +2318,8 @@ class MainWindow(QMainWindow):
         Updates the current waypoint widget for the specified vehicle based on the received message.
         """
         waypoint_num = msg.waypoint_num
-        waypoint_x = msg.lat
-        waypoint_y = msg.lon
+        waypoint_x = msg.x
+        waypoint_y = msg.y
         depth = msg.depth
         self.feedback_dict["Waypoint"][vehicle_number] = f"#{waypoint_num} ({round(waypoint_x,2)}, {round(waypoint_y,2)}, {round(depth,2)})"
         self.replace_specific_status_widget(vehicle_number, "Waypoint")
