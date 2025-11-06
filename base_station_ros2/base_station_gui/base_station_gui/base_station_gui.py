@@ -196,14 +196,14 @@ class MainWindow(QMainWindow):
 
         # Dictionary mapping feedback_dict keys to display text for status widgets
         self.key_to_text_dict = {
-            "XPos": "x (m): ",
-            "YPos": "y (m): ",
-            "Depth": "Depth (m): ",
-            "Heading": "Heading (deg): ",
-            "Waypoint": "Current Waypoint: ",
-            "DVL_vel": "DVL Velocity <br>(m/s): ",
-            "Battery": "Battery (V): ",
-            "Pressure": "Pressure (Pa): ",
+            "XPos": "X Position:<br>",
+            "YPos": "Y Position:<br>",
+            "Depth": "Depth:<br>",
+            "Heading": "Heading:<br>",
+            "Waypoint": "Current Waypoint:<br>",
+            "DVL_vel": "DVL Velocity:<br>",
+            "Battery": "Battery:<br>",
+            "Pressure": "Pressure:<br>",
         }
 
         # Option map for mission start dialog
@@ -2164,26 +2164,25 @@ class MainWindow(QMainWindow):
         temp_layout.addWidget(self.create_title_label(f""), alignment=Qt.AlignmentFlag.AlignTop)
 
         # Status widgets section
-        status_spacing = 10
+        status_spacing = 8
         temp_layout.addSpacing(status_spacing)
         temp_layout.addWidget(self.create_title_label(f"Status"), alignment=Qt.AlignmentFlag.AlignTop)
         temp_layout.addSpacing(status_spacing)
-        temp_layout.addWidget(self.create_normal_label("x (m): x", f"XPos{vehicle_number}"), alignment=Qt.AlignmentFlag.AlignVCenter)
+        temp_layout.addWidget(self.create_normal_label("X Position:<br>", f"XPos{vehicle_number}"), alignment=Qt.AlignmentFlag.AlignVCenter)
         temp_layout.addSpacing(status_spacing)
-        temp_layout.addWidget(self.create_normal_label("y (m): y", f"YPos{vehicle_number}"), alignment=Qt.AlignmentFlag.AlignVCenter)
+        temp_layout.addWidget(self.create_normal_label("Y Position:<br>", f"YPos{vehicle_number}"), alignment=Qt.AlignmentFlag.AlignVCenter)
         temp_layout.addSpacing(status_spacing)
-        temp_layout.addWidget(self.create_normal_label("Depth (m): d", f"Depth{vehicle_number}"), alignment=Qt.AlignmentFlag.AlignVCenter)
+        temp_layout.addWidget(self.create_normal_label("Depth:<br>", f"Depth{vehicle_number}"), alignment=Qt.AlignmentFlag.AlignVCenter)
         temp_layout.addSpacing(status_spacing)
-        temp_layout.addWidget(self.create_normal_label("Heading (deg): h", f"Heading{vehicle_number}"), alignment=Qt.AlignmentFlag.AlignVCenter)
+        temp_layout.addWidget(self.create_normal_label("Heading:<br>", f"Heading{vehicle_number}"), alignment=Qt.AlignmentFlag.AlignVCenter)
         temp_layout.addSpacing(status_spacing)
-        temp_layout.addWidget(self.create_normal_label("Current Waypoint: w", f"Waypoint{vehicle_number}"), alignment=Qt.AlignmentFlag.AlignVCenter)
+        temp_layout.addWidget(self.create_normal_label("DVL Velocity:<br>", f"DVL_vel{vehicle_number}"), alignment=Qt.AlignmentFlag.AlignVCenter)
         temp_layout.addSpacing(status_spacing)
-        temp_layout.addWidget(self.create_normal_label("DVL Velocity <br>(m/s): v", f"DVL_vel{vehicle_number}"), alignment=Qt.AlignmentFlag.AlignVCenter)
+        temp_layout.addWidget(self.create_normal_label("Current Waypoint:<br>", f"Waypoint{vehicle_number}"), alignment=Qt.AlignmentFlag.AlignVCenter)
         temp_layout.addSpacing(status_spacing)
-
-        temp_layout.addWidget(self.create_normal_label("Battery (V): b", f"Battery{vehicle_number}"), alignment=Qt.AlignmentFlag.AlignVCenter)
+        temp_layout.addWidget(self.create_normal_label("Battery:<br>", f"Battery{vehicle_number}"), alignment=Qt.AlignmentFlag.AlignVCenter)
         temp_layout.addSpacing(status_spacing)
-        temp_layout.addWidget(self.create_normal_label("Pressure (Pa):<br>p", f"Pressure{vehicle_number}"), alignment=Qt.AlignmentFlag.AlignVCenter)
+        temp_layout.addWidget(self.create_normal_label("Pressure:<br>", f"Pressure{vehicle_number}"), alignment=Qt.AlignmentFlag.AlignVCenter)
 
         # Return the container widget holding the mission and status widgets
         return temp_container
@@ -2318,7 +2317,11 @@ class MainWindow(QMainWindow):
         """
         Updates the current waypoint widget for the specified vehicle based on the received message.
         """
-        self.feedback_dict["Waypoint"][vehicle_number] = msg.data
+        waypoint_num = msg.waypoint_num
+        waypoint_x = msg.lat
+        waypoint_y = msg.lon
+        depth = msg.depth
+        self.feedback_dict["Waypoint"][vehicle_number] = f"#{waypoint_num} ({round(waypoint_x,2)}, {round(waypoint_y,2)}, {round(depth,2)})"
         self.replace_specific_status_widget(vehicle_number, "Waypoint")
 
     def recieve_depth_data_message(self, vehicle_number, msg):

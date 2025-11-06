@@ -24,7 +24,7 @@ from geometry_msgs.msg import PoseStamped, PoseWithCovariance, PoseWithCovarianc
 
 from base_station_interfaces.srv import BeaconId, Init
 from base_station_interfaces.msg import Connections, ConsoleLog
-from cougars_interfaces.msg import SystemStatus, SystemControl, UCommand
+from cougars_interfaces.msg import SystemStatus, SystemControl, UCommand, WayPoint
 from dvl_msgs.msg import DVLDR, DVL
 
 class GuiNode(Node):
@@ -66,7 +66,7 @@ class GuiNode(Node):
 
             # Subscribe to current waypoint messages for each vehicle
             sub = self.create_subscription(
-                Float32,
+                WayPoint,
                 f'coug{coug_number}/current_waypoint',
                 lambda msg, n=coug_number: window.recieve_current_waypoint_message(n, msg),
                 10
@@ -131,14 +131,6 @@ class GuiNode(Node):
                 10
             )
             setattr(self, f'coug{coug_number}_fins_controls', pub)
-
-            # Publisher for waypoint commands for each vehicle
-            pub = self.create_publisher(
-                Int32,
-                f'/coug{coug_number}/waypoint/command',
-                10
-            )
-            setattr(self, f'coug{coug_number}_waypoint_pub', pub)
 
             # Client for setting kinematics parameters for each vehicle
             client = self.create_client(
