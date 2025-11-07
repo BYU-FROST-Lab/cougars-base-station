@@ -177,6 +177,10 @@ public:
 
         // Fill in the status message from the data received
         status_msg.vehicle_id = msg->src_id;
+        status_msg.waypoint.waypoint_num = status->waypoint_num;
+        status_msg.waypoint.x = status->waypoint_x;;
+        status_msg.waypoint.y = status->waypoint_y;
+        status_msg.waypoint.depth = status->waypoint_depth;
         status_msg.safety_status.depth_status.data = (status->safety_mask & 0x01) != 0;
         status_msg.safety_status.gps_status.data = (status->safety_mask & 0x02) != 0;
         status_msg.safety_status.modem_status.data = (status->safety_mask & 0x04) != 0;
@@ -192,7 +196,6 @@ public:
         status_msg.dvl_vel.velocity.y = status->y_vel;
         status_msg.dvl_vel.velocity.z = status->z_vel;
         status_msg.battery_state.voltage = status->battery_voltage;
-        status_msg.battery_state.percentage = status->battery_percentage;
         status_msg.depth_data.pose.pose.position.z = status->depth;
         status_msg.pressure.fluid_pressure = status->pressure;
 
@@ -206,7 +209,6 @@ public:
         static_cast<double>(status->x_vel), 
         static_cast<double>(status->y_vel));
     RCLCPP_INFO(this->get_logger(), "battery voltage: %.2f", static_cast<double>(status->battery_voltage));
-    RCLCPP_INFO(this->get_logger(), "battery percentage: %.2f", static_cast<double>(status->battery_percentage));
     RCLCPP_INFO(this->get_logger(), "pressure: %.2f", static_cast<double>(status->pressure));
 
     }
