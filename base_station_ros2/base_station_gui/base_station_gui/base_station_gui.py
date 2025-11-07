@@ -44,11 +44,13 @@ class MainWindow(QMainWindow):
     kill_confirm_signal = pyqtSignal(object)
     safety_status_signal = pyqtSignal(int, object)
     smoothed_output_signal = pyqtSignal(int, object)
+    odometry_signal = pyqtSignal(int, object)
     dvl_velocity_signal = pyqtSignal(int, object)
     current_waypoint_signal = pyqtSignal(int, object)
     depth_data_signal = pyqtSignal(int, object)
     pressure_data_signal = pyqtSignal(int, object)
     battery_data_signal = pyqtSignal(int, object)
+    holoocean_position_signal = pyqtSignal(int, object)
     surface_confirm_signal = pyqtSignal(object)
     update_wifi_signal = pyqtSignal(dict)
 
@@ -294,6 +296,8 @@ class MainWindow(QMainWindow):
         self.surface_confirm_signal.connect(self._update_surf_confirmation_gui)
         self.safety_status_signal.connect(self._update_safety_status_information)
         self.smoothed_output_signal.connect(self._update_gui_smoothed_output)
+        self.odometry_signal.connect(self._update_gui_odometry)
+        self.holoocean_position_signal.connect(self._update_gui_holoocean_position)
         self.dvl_velocity_signal.connect(self._update_dvl_velocity)
         self.current_waypoint_signal.connect(self._update_current_waypoint)
         self.depth_data_signal.connect(self.update_depth_data)
@@ -2305,6 +2309,48 @@ class MainWindow(QMainWindow):
         self.replace_specific_status_widget(vehicle_number, "XPos")
         self.replace_specific_status_widget(vehicle_number, "YPos")
         self.replace_specific_status_widget(vehicle_number, "Heading")
+
+    def recieve_odometry_message(self, vehicle_number, msg):
+        """
+        Receives an odometry message from ROS and emits a signal to update the GUI.
+        Used to update position from smoothed_output topic.
+        """
+        self.odometry_signal.emit(vehicle_number, msg)
+
+    def _update_gui_odometry(self, vehicle_number, msg):
+        """
+        Updates the GUI widgets for position based on the received odometry message.
+        """
+        x = msg.pose.pose.position.x
+        y = msg.pose.pose.position.y
+
+        self.feedback_dict["XPos"][vehicle_number] = round(x, 2)
+        self.feedback_dict["YPos"][vehicle_number] = round(y, 2)
+
+        #replace specific page status widget
+        self.replace_specific_status_widget(vehicle_number, "XPos")
+        self.replace_specific_status_widget(vehicle_number, "YPos")
+
+    def recieve_holoocean_position_message(self, vehicle_number, msg):
+        """
+        Receives a HoloOcean LocationSensor message and emits a signal to update the GUI.
+        Used for simulation position updates.
+        """
+        self.holoocean_position_signal.emit(vehicle_number, msg)
+
+    def _update_gui_holoocean_position(self, vehicle_number, msg):
+        """
+        Updates the GUI widgets for position based on HoloOcean LocationSensor message.
+        """
+        x = msg.pose.pose.position.x
+        y = msg.pose.pose.position.y
+
+        self.feedback_dict["XPos"][vehicle_number] = round(x, 2)
+        self.feedback_dict["YPos"][vehicle_number] = round(y, 2)
+
+        #replace specific page status widget
+        self.replace_specific_status_widget(vehicle_number, "XPos")
+        self.replace_specific_status_widget(vehicle_number, "YPos")
 
     def recieve_current_waypoint_message(self, vehicle_number, msg):
         """

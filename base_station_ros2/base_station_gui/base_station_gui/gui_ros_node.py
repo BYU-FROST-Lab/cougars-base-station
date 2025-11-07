@@ -55,6 +55,25 @@ class GuiNode(Node):
             )
             setattr(self, f'smoothed_ouput_subscription{coug_number}', sub)
 
+            # Subscribe to smoothed_output (Odometry) for position fallback
+            sub = self.create_subscription(
+                Odometry,
+                f'coug{coug_number}/smoothed_output',
+                lambda msg, n=coug_number: window.recieve_odometry_message(n, msg),
+                10
+            )
+            setattr(self, f'odometry_subscription{coug_number}', sub)
+
+            # Subscribe to HoloOcean LocationSensor for vehicle 0 (simulation)
+            if coug_number == 0:
+                sub = self.create_subscription(
+                    PoseWithCovarianceStamped,
+                    '/holoocean/auv0/LocationSensor',
+                    lambda msg, n=coug_number: window.recieve_holoocean_position_message(n, msg),
+                    10
+                )
+                setattr(self, f'holoocean_position_subscription{coug_number}', sub)
+
             # Subscribe to smoothed output messages for each vehicle
             sub = self.create_subscription(
                 DVL,
