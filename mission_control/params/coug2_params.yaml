@@ -122,5 +122,10 @@ coug2:
     ros__parameters:
       modem.robot_orientation.translation: [0.0, 0.0, 0.0]
       modem.robot_orientation.orientation: [0.0, 0.0, 0.0, 1.0]
+  
+  param_reloader:
+    ros__parameters:
+      param_file_path: "/home/frostlab/config/deploy_tmp/coug2_params.yaml"
+      targert_node: ['/coug2/coug_controls', '/coug2/coug_kinematics', '/coug2/cougars_coms', '/coug2/manual_mission']
 
 
