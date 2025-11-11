@@ -37,7 +37,7 @@ class Base_Station_Wifi(Node):
         self.thruster_clients = {}
         self.reload_params_publishers = {}
         for vehicle in self.vehicles_in_mission:
-            self.reload_params_publishers[vehicle] = self.create_publisher(Empty, f'coug{vehicle}/reload_params', 10)
+            self.reload_params_publishers[vehicle] = self.create_publisher(Empty, f'coug{vehicle}/reload_parameters', 10)
             self.init_publishers[vehicle] = self.create_publisher(SystemControl, f'coug{vehicle}/system/status', 10)
             self.thruster_clients[vehicle] = self.create_client(SetBool, f'coug{vehicle}/arm_thruster')
 
@@ -211,7 +211,7 @@ class Base_Station_Wifi(Node):
                 msg = Connections()
                 msg.connection_type = 2  # WiFi connections
                 msg.vehicle_ids = self.vehicles_in_mission
-                msg.connections = [False for vehicle in self.vehicles_in_mission]
+                msg.connections = [final_connections.get(vehicle, False) for vehicle in self.vehicles_in_mission]
 
                 # Calculate time since last successful ping
                 current_time = self.get_clock().now()
