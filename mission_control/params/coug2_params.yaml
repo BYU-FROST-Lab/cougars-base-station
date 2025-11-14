@@ -123,4 +123,11 @@ coug2:
       modem.robot_orientation.translation: [0.0, 0.0, 0.0]
       modem.robot_orientation.orientation: [0.0, 0.0, 0.0, 1.0]
 
-
+  waypoint_follower_node:
+    ros__parameters:
+      desired_travel_speed: 35.0
+      slip_radius: 5.0
+      capture_radius: 10.0
+      loop_rate: 10.0
+      waypoint_timeout: 180.0  # seconds (3 minutes)
+      skip_on_timeout: true    # Skip waypoint on timeout (true) or abort mission (false)
