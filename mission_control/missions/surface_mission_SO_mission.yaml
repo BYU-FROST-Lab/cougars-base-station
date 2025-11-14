@@ -1,0 +1,45 @@
+mission_type: waypoint
+mission_name: surface_mission_so
+origin_lla:
+  latitude: 40.0717592
+  longitude: -111.6001751
+  altitude: 1564.568
+  name: Spanish Oaks
+reference_frame_for_waypoints: ENU_at_origin_LLA
+waypoints:
+- id: 1
+  position_enu:
+    x: 66.141
+    y: 0.029
+    z: -0.0
+  depth: 0.0
+  original_map_click_lla:
+    latitude: 40.0717595
+    longitude: -111.5993999
+- id: 2
+  position_enu:
+    x: 81.016
+    y: 54.967
+    z: -0.001
+  depth: 0.0
+  original_map_click_lla:
+    latitude: 40.0722541
+    longitude: -111.5992256
+- id: 3
+  position_enu:
+    x: 28.378
+    y: 50.408
+    z: -0.0
+  depth: 0.0
+  original_map_click_lla:
+    latitude: 40.0722131
+    longitude: -111.5998425
+- id: 4
+  position_enu:
+    x: 14.418
+    y: 7.551
+    z: -0.0
+  depth: 0.0
+  original_map_click_lla:
+    latitude: 40.0718272
+    longitude: -111.6000061
