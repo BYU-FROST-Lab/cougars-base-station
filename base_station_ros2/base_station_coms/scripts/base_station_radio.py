@@ -173,9 +173,7 @@ class RFBridge(Node):
             elif message_type == "FILE_ACK":
                 # Handle file transfer acknowledgments
                 self.get_logger().debug(f"Received file transfer ACK from vehicle {data.get('src_id')}: {data.get('status', 'unknown')}")
-                if data.get("status") == "complete":
-                    # File transfer completed successfully; no action taken.
-                elif data.get("status") == "error":
+                if data.get("status") == "error":
                     self.print_to_gui_publisher.publish(
                         ConsoleLog(
                             message=f"File transfer failed on vehicle {data.get('src_id')}: {data.get('error', 'unknown error')}",

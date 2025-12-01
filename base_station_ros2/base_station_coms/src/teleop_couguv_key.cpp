@@ -10,6 +10,10 @@
 #include <algorithm>
 #include <string>
 #include <thread>
+#include <chrono>
+#include <functional>
+#include <sstream>
+#include <iomanip>
 
 #define KEYCODE_SPACE 0x20
 #define KEYCODE_DOT 0x2E
@@ -26,6 +30,7 @@ private:
   void processKey(char key);
   void publishCommand();
   void publishConsoleLog(const std::string& message, int vehicle_id = 0);
+  bool tryApplyChange(const std::function<void()> &apply_fn);
   void timerCallback();  // New timer callback for rate-limited publishing
 
   double fin1_, fin2_, fin3_, max_fin_value_; 
@@ -47,6 +52,10 @@ private:
   // Invert controls (configurable)
   bool invert_vertical_controls_;
   bool invert_lateral_controls_;
+  // Change-rate limiting
+  double command_change_rate_hz_; // max number of changes per second
+  std::chrono::steady_clock::time_point last_change_time_;
+  std::chrono::milliseconds min_change_interval_ms_;
 };
 
 TeleopCommand::TeleopCommand() :
@@ -57,6 +66,8 @@ TeleopCommand::TeleopCommand() :
   declare_parameter("thruster_value", 0);
   declare_parameter("vehicles_in_mission", std::vector<int64_t>{1, 2, 5});
   declare_parameter("publish_rate_hz", 5.0);  // Default 5 Hz publish rate
+  // Max rate at which control values can change (to prevent overly-fast changes)
+  declare_parameter("command_change_rate_hz", 10.0); // default 10 Hz
   // Invert control options
   declare_parameter("invert_vertical_controls", false);
   declare_parameter("invert_lateral_controls", false);
@@ -67,6 +78,12 @@ TeleopCommand::TeleopCommand() :
   get_parameter("publish_rate_hz", publish_rate_hz_);
   get_parameter("invert_vertical_controls", invert_vertical_controls_);
   get_parameter("invert_lateral_controls", invert_lateral_controls_);
+  get_parameter("command_change_rate_hz", command_change_rate_hz_);
+
+  if (command_change_rate_hz_ <= 0.0) command_change_rate_hz_ = 1.0;
+  min_change_interval_ms_ = std::chrono::milliseconds(static_cast<int>(1000.0 / command_change_rate_hz_));
+  // Allow immediate first change
+  last_change_time_ = std::chrono::steady_clock::now() - min_change_interval_ms_;
 
   // Initialize with first vehicle in the list
   if (!vehicles_in_mission_.empty()) {
@@ -199,26 +216,26 @@ void TeleopCommand::keyLoop()
         switch(seq[1])
         {
           case 'A': // Up arrow
-            RCLCPP_DEBUG(get_logger(), "UP - Fins up (vertical_step=%.1f)", vertical_step);
-            fin2_ = std::clamp(fin2_ + vertical_step, -max_fin_value_, max_fin_value_);
-            fin3_ = std::clamp(fin3_ + vertical_step, -max_fin_value_, max_fin_value_);
-            command_dirty_ = true;  // Mark for publishing
+            tryApplyChange([this, vertical_step]() {
+              fin2_ = std::clamp(fin2_ + vertical_step, -max_fin_value_, max_fin_value_);
+              fin3_ = std::clamp(fin3_ + vertical_step, -max_fin_value_, max_fin_value_);
+            });
             break;
           case 'B': // Down arrow
-            RCLCPP_DEBUG(get_logger(), "DOWN - Fins down (vertical_step=%.1f)", vertical_step);
-            fin2_ = std::clamp(fin2_ - vertical_step, -max_fin_value_, max_fin_value_);
-            fin3_ = std::clamp(fin3_ - vertical_step, -max_fin_value_, max_fin_value_);
-            command_dirty_ = true;  // Mark for publishing
+            tryApplyChange([this, vertical_step]() {
+              fin2_ = std::clamp(fin2_ - vertical_step, -max_fin_value_, max_fin_value_);
+              fin3_ = std::clamp(fin3_ - vertical_step, -max_fin_value_, max_fin_value_);
+            });
             break;
           case 'C': // Right arrow
-            RCLCPP_DEBUG(get_logger(), "RIGHT - Turn right (lateral_step=%.1f)", lateral_step);
-            fin1_ = std::clamp(fin1_ + lateral_step, -max_fin_value_, max_fin_value_);
-            command_dirty_ = true;  // Mark for publishing
+            tryApplyChange([this, lateral_step]() {
+              fin1_ = std::clamp(fin1_ + lateral_step, -max_fin_value_, max_fin_value_);
+            });
             break;
           case 'D': // Left arrow
-            RCLCPP_DEBUG(get_logger(), "LEFT - Turn left (lateral_step=%.1f)", lateral_step);
-            fin1_ = std::clamp(fin1_ - lateral_step, -max_fin_value_, max_fin_value_);
-            command_dirty_ = true;  // Mark for publishing
+            tryApplyChange([this, lateral_step]() {
+              fin1_ = std::clamp(fin1_ - lateral_step, -max_fin_value_, max_fin_value_);
+            });
             break;
         }
       }
@@ -292,12 +309,6 @@ void TeleopCommand::publishCommand()
               vehicle_id_, fin1_, fin2_, fin3_, effective_thruster,
               thruster_enabled_ ? "(ENABLED)" : "(DISABLED)");
   
-  // Send console log to GUI
-  publishConsoleLog("Vehicle " + std::to_string(vehicle_id_) + 
-                   " - Fins: [" + std::to_string(fin1_) + ", " + 
-                   std::to_string(fin2_) + ", " + std::to_string(fin3_) + 
-                   "] deg, Thruster: " + std::to_string(effective_thruster) +
-                   (thruster_enabled_ ? " (ENABLED)" : " (DISABLED)"), vehicle_id_);
 }
 
 void TeleopCommand::keyPressCallback(const std_msgs::msg::String::SharedPtr msg)
@@ -321,48 +332,48 @@ void TeleopCommand::processKey(char key)
   switch(key) {
     case 'w':
     case 'W':
-      RCLCPP_DEBUG(get_logger(), "W - Fins up (vertical_step=%.1f)", vertical_step);
-      fin2_ = std::clamp(fin2_ + vertical_step, -max_fin_value_, max_fin_value_);
-      fin3_ = std::clamp(fin3_ + vertical_step, -max_fin_value_, max_fin_value_);
-      command_dirty_ = true;  // Mark for publishing
+      tryApplyChange([this, vertical_step]() {
+        fin2_ = std::clamp(fin2_ + vertical_step, -max_fin_value_, max_fin_value_);
+        fin3_ = std::clamp(fin3_ + vertical_step, -max_fin_value_, max_fin_value_);
+      });
       break;
     case 's':
     case 'S':
-      RCLCPP_DEBUG(get_logger(), "S - Fins down (vertical_step=%.1f)", vertical_step);
-      fin2_ = std::clamp(fin2_ - vertical_step, -max_fin_value_, max_fin_value_);
-      fin3_ = std::clamp(fin3_ - vertical_step, -max_fin_value_, max_fin_value_);
-      command_dirty_ = true;  // Mark for publishing
+      tryApplyChange([this, vertical_step]() {
+        fin2_ = std::clamp(fin2_ - vertical_step, -max_fin_value_, max_fin_value_);
+        fin3_ = std::clamp(fin3_ - vertical_step, -max_fin_value_, max_fin_value_);
+      });
       break;
     case 'a':
     case 'A':
-      RCLCPP_DEBUG(get_logger(), "A - Turn left (lateral_step=%.1f)", lateral_step);
-      fin1_ = std::clamp(fin1_ - lateral_step, -max_fin_value_, max_fin_value_);
-      command_dirty_ = true;  // Mark for publishing
+      tryApplyChange([this, lateral_step]() {
+        fin1_ = std::clamp(fin1_ - lateral_step, -max_fin_value_, max_fin_value_);
+      });
       break;
     case 'd':
     case 'D':
-      RCLCPP_DEBUG(get_logger(), "D - Turn right (lateral_step=%.1f)", lateral_step);
-      fin1_ = std::clamp(fin1_ + lateral_step, -max_fin_value_, max_fin_value_);
-      command_dirty_ = true;  // Mark for publishing
+      tryApplyChange([this, lateral_step]() {
+        fin1_ = std::clamp(fin1_ + lateral_step, -max_fin_value_, max_fin_value_);
+      });
       break;
     case ' ': // Space key
-      thruster_value_ = std::min(100, thruster_value_ + 5);
-      RCLCPP_DEBUG(get_logger(), "Spacebar - Increased thruster to %d", thruster_value_);
-      command_dirty_ = true;  // Mark for publishing
+      tryApplyChange([this]() {
+        thruster_value_ = std::min(100, thruster_value_ + 5);
+      });
       break;
     case 'r':
     case 'R':
-      thruster_value_ = std::max(0, thruster_value_ - 5);
-      RCLCPP_DEBUG(get_logger(), "R - Decreased thruster to %d", thruster_value_);
-      command_dirty_ = true;  // Mark for publishing
+      tryApplyChange([this]() {
+        thruster_value_ = std::max(0, thruster_value_ - 5);
+      });
       break;
     case '.':
     case ',':
     case '-':
     case '_':
-      thruster_value_ = std::max(0, thruster_value_ - 5);
-      RCLCPP_DEBUG(get_logger(), "Decrease key - Decreased thruster to %d", thruster_value_);
-      command_dirty_ = true;  // Mark for publishing
+      tryApplyChange([this]() {
+        thruster_value_ = std::max(0, thruster_value_ - 5);
+      });
       break;
     case 'e':
     case 'E':
@@ -381,6 +392,27 @@ void TeleopCommand::processKey(char key)
       // Ignore unknown keys
       break;
   }
+}
+
+bool TeleopCommand::tryApplyChange(const std::function<void()> &apply_fn)
+{
+  auto now = std::chrono::steady_clock::now();
+  if (now - last_change_time_ < min_change_interval_ms_) {
+    RCLCPP_DEBUG(get_logger(), "Change rate-limited (%.1f Hz allowed)", command_change_rate_hz_);
+    return false;
+  }
+
+  apply_fn();
+  last_change_time_ = now;
+  command_dirty_ = true;
+  // Publish immediate console log about the change showing current ucommand values
+  int effective_thruster = thruster_enabled_ ? thruster_value_ : 0;
+  std::ostringstream oss;
+  oss << std::fixed << std::setprecision(1);
+  oss << "Vehicle " << vehicle_id_ << " - Fins: [" << fin1_ << ", " << fin2_ << ", " << fin3_ << "] deg, Thruster: "
+      << effective_thruster << (thruster_enabled_ ? " (ENABLED)" : " (DISABLED)");
+  publishConsoleLog(oss.str(), vehicle_id_);
+  return true;
 }
 
 void TeleopCommand::publishConsoleLog(const std::string& message, int vehicle_id)
