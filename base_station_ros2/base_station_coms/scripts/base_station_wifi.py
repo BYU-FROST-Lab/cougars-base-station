@@ -243,7 +243,6 @@ class Base_Station_Wifi(Node):
                     ping_results[vehicle] = is_connected
 
                 # Update connection status based on consecutive missed pings
-                final_connections = {}
                 for vehicle in self.vehicles_in_mission:
                     if vehicle in ping_results:
                         if ping_results[vehicle]:
@@ -263,14 +262,12 @@ class Base_Station_Wifi(Node):
                         self.missed_ping_count[vehicle] += 1
                         if self.missed_ping_count[vehicle] >= self.max_missed_pings:
                             self.connection_status[vehicle] = False
-                    
-                    final_connections[vehicle] = self.connection_status[vehicle]
 
                 # Create and publish the message
                 msg = Connections()
                 msg.connection_type = 2  # WiFi connections
                 msg.vehicle_ids = self.vehicles_in_mission
-                msg.connections = [self.connection_status[vehicle] for vehicle in self.vehicles_in_mission] #
+                msg.connections = [self.connection_status[vehicle] for vehicle in self.vehicles_in_mission]
 
                 # Calculate time since last successful ping
                 current_time = self.get_clock().now()
