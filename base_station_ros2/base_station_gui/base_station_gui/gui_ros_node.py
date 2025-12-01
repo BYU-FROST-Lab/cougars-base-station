@@ -14,7 +14,7 @@ from rclpy.node import Node
 from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy
 from rclpy.executors import SingleThreadedExecutor
 from rcl_interfaces.srv import SetParameters
-from rcl_interfaces.msg import Parameter as RclParameter, ParameterValue, ParameterType
+from rcl_interfaces.msg import Parameter as RclParameter, ParameterType
 
 import time
 from std_msgs.msg import String, Bool
