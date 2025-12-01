@@ -373,7 +373,6 @@ class RFBridge(Node):
                 chunk_data = file_data[start_idx:end_idx]
                 
                 # Encode chunk data as base64 for JSON transmission
-                import base64
                 chunk_b64 = base64.b64encode(chunk_data).decode('ascii')
                 
                 chunk_msg = {
