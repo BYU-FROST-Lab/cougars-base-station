@@ -170,11 +170,6 @@ public:
                     ros_namespace + "/depth_data", 10);
                 pressure_publishers_[vehicle_id] = this->create_publisher<sensor_msgs::msg::FluidPressure>(
                     ros_namespace + "/pressure/data", 10);
-                // keyboard_controls_subscribers_[vehicle_id] = this->create_subscription<cougars_interfaces::msg::UCommand>(
-                //     ros_namespace + "/controls/command", 10,
-                //     [this, vehicle_id](const cougars_interfaces::msg::UCommand::SharedPtr msg) {
-                //     this->keyboard_controls_callback(msg, vehicle_id);
-                //     });
             }
         }
 
