@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <cmath>
+#include <algorithm>
 #include <string>
 #include <thread>
 
@@ -43,21 +44,29 @@ private:
   bool command_dirty_;  // Flag to track if we need to publish
   double publish_rate_hz_;  // Configurable publish rate
   bool thruster_enabled_;  // Flag to enable/disable thruster
+  // Invert controls (configurable)
+  bool invert_vertical_controls_;
+  bool invert_lateral_controls_;
 };
 
 TeleopCommand::TeleopCommand() :
   Node("teleop_command"),
   fin1_(0.0), fin2_(0.0), fin3_(0.0), current_vehicle_index_(0), command_dirty_(false), thruster_enabled_(false)
 {
-  declare_parameter("max_fin_value", 35.0);
-  declare_parameter("thruster_value", 800);
+  declare_parameter("max_fin_value", 70.0);
+  declare_parameter("thruster_value", 0);
   declare_parameter("vehicles_in_mission", std::vector<int64_t>{1, 2, 5});
   declare_parameter("publish_rate_hz", 5.0);  // Default 5 Hz publish rate
+  // Invert control options
+  declare_parameter("invert_vertical_controls", false);
+  declare_parameter("invert_lateral_controls", false);
 
   get_parameter("max_fin_value", max_fin_value_);
   get_parameter("thruster_value", thruster_value_);
   get_parameter("vehicles_in_mission", vehicles_in_mission_);
   get_parameter("publish_rate_hz", publish_rate_hz_);
+  get_parameter("invert_vertical_controls", invert_vertical_controls_);
+  get_parameter("invert_lateral_controls", invert_lateral_controls_);
 
   // Initialize with first vehicle in the list
   if (!vehicles_in_mission_.empty()) {
@@ -100,8 +109,10 @@ TeleopCommand::TeleopCommand() :
     std::bind(&TeleopCommand::timerCallback, this)
   );
 
-  RCLCPP_INFO(get_logger(), "Initialized teleop for vehicle %d with publish rate %.1f Hz, thruster %s", 
-              vehicle_id_, publish_rate_hz_, thruster_enabled_ ? "ENABLED" : "DISABLED");
+  RCLCPP_INFO(get_logger(), "Initialized teleop for vehicle %d with publish rate %.1f Hz, thruster %s, invert_vertical=%s, invert_lateral=%s", 
+              vehicle_id_, publish_rate_hz_, thruster_enabled_ ? "ENABLED" : "DISABLED",
+              invert_vertical_controls_ ? "true" : "false",
+              invert_lateral_controls_ ? "true" : "false");
   
   // Send initial console message to GUI
   publishConsoleLog("Teleop node initialized for vehicle " + std::to_string(vehicle_id_) + 
@@ -172,6 +183,10 @@ void TeleopCommand::keyLoop()
       exit(-1);
     }
 
+    // compute control steps (respecting inversion flags)
+    double vertical_step = 2.0 * (invert_vertical_controls_ ? -1.0 : 1.0);
+    double lateral_step = 2.0 * (invert_lateral_controls_ ? -1.0 : 1.0);
+
     // Handle escape sequences for arrow keys
     if (c == 0x1B) // ESC
     {
@@ -184,25 +199,25 @@ void TeleopCommand::keyLoop()
         switch(seq[1])
         {
           case 'A': // Up arrow
-            RCLCPP_DEBUG(get_logger(), "UP - Fins up");
-            fin2_ = std::min(max_fin_value_, fin2_ + 2.0);
-            fin3_ = std::min(max_fin_value_, fin3_ + 2.0);
+            RCLCPP_DEBUG(get_logger(), "UP - Fins up (vertical_step=%.1f)", vertical_step);
+            fin2_ = std::clamp(fin2_ + vertical_step, -max_fin_value_, max_fin_value_);
+            fin3_ = std::clamp(fin3_ + vertical_step, -max_fin_value_, max_fin_value_);
             command_dirty_ = true;  // Mark for publishing
             break;
           case 'B': // Down arrow
-            RCLCPP_DEBUG(get_logger(), "DOWN - Fins down");
-            fin2_ = std::max(-max_fin_value_, fin2_ - 2.0);
-            fin3_ = std::max(-max_fin_value_, fin3_ - 2.0);
+            RCLCPP_DEBUG(get_logger(), "DOWN - Fins down (vertical_step=%.1f)", vertical_step);
+            fin2_ = std::clamp(fin2_ - vertical_step, -max_fin_value_, max_fin_value_);
+            fin3_ = std::clamp(fin3_ - vertical_step, -max_fin_value_, max_fin_value_);
             command_dirty_ = true;  // Mark for publishing
             break;
           case 'C': // Right arrow
-            RCLCPP_DEBUG(get_logger(), "RIGHT - Turn right");
-            fin1_ = std::min(max_fin_value_, fin1_ + 2.0);
+            RCLCPP_DEBUG(get_logger(), "RIGHT - Turn right (lateral_step=%.1f)", lateral_step);
+            fin1_ = std::clamp(fin1_ + lateral_step, -max_fin_value_, max_fin_value_);
             command_dirty_ = true;  // Mark for publishing
             break;
           case 'D': // Left arrow
-            RCLCPP_DEBUG(get_logger(), "LEFT - Turn left");
-            fin1_ = std::max(-max_fin_value_, fin1_ - 2.0);
+            RCLCPP_DEBUG(get_logger(), "LEFT - Turn left (lateral_step=%.1f)", lateral_step);
+            fin1_ = std::clamp(fin1_ - lateral_step, -max_fin_value_, max_fin_value_);
             command_dirty_ = true;  // Mark for publishing
             break;
         }
@@ -249,11 +264,9 @@ void TeleopCommand::switchVehicle()
 
 void TeleopCommand::timerCallback()
 {
-  // Only publish if there have been changes since last publish
-  if (command_dirty_) {
-    publishCommand();
-    command_dirty_ = false;  // Reset the flag
-  }
+  // Publish at a steady rate regardless of changes
+  publishCommand();
+  command_dirty_ = false;  // Reset the flag (we published current state)
 }
 
 void TeleopCommand::publishCommand()
@@ -261,10 +274,12 @@ void TeleopCommand::publishCommand()
   last_command_msg_.ucommand.header.stamp = get_clock()->now();
   last_command_msg_.ucommand.header.frame_id = vehicle_name_;
   last_command_msg_.vehicle_id = vehicle_id_;
+  // Publish four fin values (fourth unused/zero by default)
   last_command_msg_.ucommand.fin = {
     -fin1_,  // Send degrees directly (negated for proper direction)
      fin2_,  // Send degrees directly
-    -fin3_   // Send degrees directly (negated for proper direction)
+    -fin3_,  // Send degrees directly (negated for proper direction)
+     0.0     // 4th fin (if needed)
   };
   // Only send thruster value if thruster is enabled, otherwise send 0
   last_command_msg_.ucommand.thruster = thruster_enabled_ ? static_cast<double>(thruster_value_) : 0.0;
@@ -299,31 +314,35 @@ void TeleopCommand::keyPressCallback(const std_msgs::msg::String::SharedPtr msg)
 
 void TeleopCommand::processKey(char key)
 {
+  // compute control steps (respecting inversion flags)
+  double vertical_step = 2.0 * (invert_vertical_controls_ ? -1.0 : 1.0);
+  double lateral_step = 2.0 * (invert_lateral_controls_ ? -1.0 : 1.0);
+
   switch(key) {
     case 'w':
     case 'W':
-      RCLCPP_DEBUG(get_logger(), "W - Fins up");
-      fin2_ = std::min(max_fin_value_, fin2_ + 2.0);
-      fin3_ = std::min(max_fin_value_, fin3_ + 2.0);
+      RCLCPP_DEBUG(get_logger(), "W - Fins up (vertical_step=%.1f)", vertical_step);
+      fin2_ = std::clamp(fin2_ + vertical_step, -max_fin_value_, max_fin_value_);
+      fin3_ = std::clamp(fin3_ + vertical_step, -max_fin_value_, max_fin_value_);
       command_dirty_ = true;  // Mark for publishing
       break;
     case 's':
     case 'S':
-      RCLCPP_DEBUG(get_logger(), "S - Fins down");
-      fin2_ = std::max(-max_fin_value_, fin2_ - 2.0);
-      fin3_ = std::max(-max_fin_value_, fin3_ - 2.0);
+      RCLCPP_DEBUG(get_logger(), "S - Fins down (vertical_step=%.1f)", vertical_step);
+      fin2_ = std::clamp(fin2_ - vertical_step, -max_fin_value_, max_fin_value_);
+      fin3_ = std::clamp(fin3_ - vertical_step, -max_fin_value_, max_fin_value_);
       command_dirty_ = true;  // Mark for publishing
       break;
     case 'a':
     case 'A':
-      RCLCPP_DEBUG(get_logger(), "A - Turn left");
-      fin1_ = std::max(-max_fin_value_, fin1_ - 2.0);
+      RCLCPP_DEBUG(get_logger(), "A - Turn left (lateral_step=%.1f)", lateral_step);
+      fin1_ = std::clamp(fin1_ - lateral_step, -max_fin_value_, max_fin_value_);
       command_dirty_ = true;  // Mark for publishing
       break;
     case 'd':
     case 'D':
-      RCLCPP_DEBUG(get_logger(), "D - Turn right");
-      fin1_ = std::min(max_fin_value_, fin1_ + 2.0);
+      RCLCPP_DEBUG(get_logger(), "D - Turn right (lateral_step=%.1f)", lateral_step);
+      fin1_ = std::clamp(fin1_ + lateral_step, -max_fin_value_, max_fin_value_);
       command_dirty_ = true;  // Mark for publishing
       break;
     case ' ': // Space key
