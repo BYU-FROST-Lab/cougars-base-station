@@ -34,7 +34,7 @@ private:
   void timerCallback();  // New timer callback for rate-limited publishing
 
   double fin1_, fin2_, fin3_, max_fin_value_; 
-  int thruster_value_;
+  int thruster_value_, fin_change_speed_;
   std::string vehicle_name_;
   int vehicle_id_;
   std::vector<int64_t> vehicles_in_mission_;
@@ -71,6 +71,7 @@ TeleopCommand::TeleopCommand() :
   // Invert control options
   declare_parameter("invert_vertical_controls", false);
   declare_parameter("invert_lateral_controls", false);
+  declare_parameter("fin_change_speed", 2); // degrees per key press
 
   get_parameter("max_fin_value", max_fin_value_);
   get_parameter("thruster_value", thruster_value_);
@@ -79,6 +80,7 @@ TeleopCommand::TeleopCommand() :
   get_parameter("invert_vertical_controls", invert_vertical_controls_);
   get_parameter("invert_lateral_controls", invert_lateral_controls_);
   get_parameter("command_change_rate_hz", command_change_rate_hz_);
+  get_parameter("fin_change_speed", fin_change_speed_); // just to use the param and avoid warning
 
   if (command_change_rate_hz_ <= 0.0) command_change_rate_hz_ = 1.0;
   min_change_interval_ms_ = std::chrono::milliseconds(static_cast<int>(1000.0 / command_change_rate_hz_));
@@ -201,8 +203,8 @@ void TeleopCommand::keyLoop()
     }
 
     // compute control steps (respecting inversion flags)
-    double vertical_step = 2.0 * (invert_vertical_controls_ ? -1.0 : 1.0);
-    double lateral_step = 2.0 * (invert_lateral_controls_ ? -1.0 : 1.0);
+    double vertical_step = fin_change_speed_ * (invert_vertical_controls_ ? -1.0 : 1.0);
+    double lateral_step = fin_change_speed_ * (invert_lateral_controls_ ? -1.0 : 1.0);
 
     // Handle escape sequences for arrow keys
     if (c == 0x1B) // ESC
@@ -326,8 +328,8 @@ void TeleopCommand::keyPressCallback(const std_msgs::msg::String::SharedPtr msg)
 void TeleopCommand::processKey(char key)
 {
   // compute control steps (respecting inversion flags)
-  double vertical_step = 2.0 * (invert_vertical_controls_ ? -1.0 : 1.0);
-  double lateral_step = 2.0 * (invert_lateral_controls_ ? -1.0 : 1.0);
+  double vertical_step = fin_change_speed_ * (invert_vertical_controls_ ? -1.0 : 1.0);
+  double lateral_step = fin_change_speed_ * (invert_lateral_controls_ ? -1.0 : 1.0);
 
   switch(key) {
     case 'w':
