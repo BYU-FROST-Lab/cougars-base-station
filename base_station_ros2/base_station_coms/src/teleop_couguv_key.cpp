@@ -397,10 +397,10 @@ void TeleopCommand::processKey(char key)
     case 'z':
     case 'Z':
       publishing_enabled_ = !publishing_enabled_;  // Toggle publishing and GUI printing
-      RCLCPP_INFO(get_logger(), "Publishing and GUI printing %s", publishing_enabled_ ? "ENABLED" : "DISABLED");
+      RCLCPP_INFO(get_logger(), "Keyboard control %s", publishing_enabled_ ? "ENABLED" : "DISABLED");
       // This message will only be sent if publishing is now enabled
       if (publishing_enabled_) {
-        publishConsoleLog("Publishing and GUI printing ENABLED for vehicle " + std::to_string(vehicle_id_));
+        publishConsoleLog("Keyboard control ENABLED for vehicle " + std::to_string(vehicle_id_));
       }
       break;
     default:

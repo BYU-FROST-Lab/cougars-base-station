@@ -1,6 +1,7 @@
 
 #include "rclcpp/rclcpp.hpp"
 #include "std_srvs/srv/set_bool.hpp"
+#include "std_msgs/msg/string.hpp"
 #include "seatrac_interfaces/msg/modem_rec.hpp"
 #include "seatrac_interfaces/msg/modem_send.hpp"
 #include "base_station_interfaces/srv/beacon_id.hpp"
@@ -14,6 +15,8 @@
 #include "base_station_interfaces/srv/init.hpp"
 #include "cougars_interfaces/msg/u_command.hpp"
 
+
+
 #include "base_station_coms/coms_protocol.hpp"
 #include "base_station_coms/seatrac_enums.hpp"
 
@@ -23,6 +26,7 @@
 #include <memory>
 #include <unordered_map>
 #include <string>
+#include <sstream>
 
 
 using namespace std::literals::chrono_literals;
@@ -52,11 +56,9 @@ public:
         // When true the node will periodically request status from vehicles in mission
         bool request_status = this->declare_parameter<bool>("request_status", true);
 
-
-        // client for the base_station_radio node. Requests that the radio sends an emergency kill command to a specific coug
-        radio_e_kill_client_ = this->create_client<base_station_interfaces::srv::BeaconId>(
-            "radio_e_kill"
-        );
+        rf_transmit_pub_ = this->create_publisher<std_msgs::msg::String>(
+            "rf_transmit",
+            10);
         
         // client for the base_station_modem node. Requests that the modem sends an emergency kill command to a specific coug
         modem_e_kill_client_ = this->create_client<base_station_interfaces::srv::BeaconId>(
@@ -77,11 +79,6 @@ public:
             "modem_status_request"
         );
 
-        // client for the base_station_radio node. Requests that the radio gets the status of a coug
-        radio_status_request_client_ = this->create_client<base_station_interfaces::srv::BeaconId>(
-            "radio_status_request"
-        );
-
         wifi_init_client_ = this->create_client<base_station_interfaces::srv::Init>(
             "wifi_init"
         );
@@ -90,9 +87,6 @@ public:
             "modem_init"
         );
 
-        radio_init_client_ = this->create_client<base_station_interfaces::srv::Init>(
-            "radio_init"
-        );
 
         wifi_load_mission_client_ = this->create_client<base_station_interfaces::srv::LoadMission>(
             "wifi_load_mission"
@@ -145,10 +139,6 @@ public:
 
         wifi_key_publisher_ = this->create_publisher<base_station_interfaces::msg::UCommandBase>(
             "wifi_keyboard_controls", 10
-        );
-
-        radio_key_publisher_ = this->create_publisher<base_station_interfaces::msg::UCommandBase>(
-            "radio_key_command", 10
         );
 
         // RCLCPP_INFO(this->get_logger(), "request status: %d", request_status);
@@ -216,18 +206,40 @@ public:
 
     // Callback for the keyboard controls topic, updates the keyboard controls for each vehicle in mission
     void keyboard_controls_callback(const base_station_interfaces::msg::UCommandBase::SharedPtr msg) {
+        int vehicle_id = msg->vehicle_id;
+        RCLCPP_DEBUG(rclcpp::get_logger("rclcpp"), "Received keyboard controls for vehicle %d", vehicle_id);
 
         // if wifi connection, send to wifi keyboard controls
-        if (wifi_connection[msg->vehicle_id]) {
-            RCLCPP_DEBUG(rclcpp::get_logger("rclcpp"), "Sending keyboard controls for coug %d over wifi", msg->vehicle_id);
+        if (wifi_connection[vehicle_id]) {
+            RCLCPP_DEBUG(rclcpp::get_logger("rclcpp"), "Sending keyboard controls for coug %d over wifi", vehicle_id);
             wifi_key_publisher_->publish(*msg);
             return;
-        } else if (radio_connection[msg->vehicle_id]) {
-            RCLCPP_DEBUG(rclcpp::get_logger("rclcpp"), "Sending keyboard controls for coug %d over radio", msg->vehicle_id);
-            radio_key_publisher_->publish(*msg);
+        } else if (radio_connection[vehicle_id]) {
+                
+                // Build JSON message matching Python format
+                std::ostringstream json_stream;
+                json_stream << "{"
+                            << "\"vehicle_id\":" << vehicle_id << ","
+                            << "\"message\":\"KEY_CONTROL\","
+                            << "\"command\":{"
+                            << "\"fin\":[" << msg->ucommand.fin[0] << "," 
+                            << msg->ucommand.fin[1] << "," 
+                            << msg->ucommand.fin[2] << "," 
+                            << msg->ucommand.fin[3] << "],"
+                            << "\"throttle\":" << static_cast<int>(msg->ucommand.thruster) << ","
+                            << "\"enable\":" << (msg->thruster_enabled ? "true" : "false")
+                            << "}"
+                            << "}";
+                
+                std_msgs::msg::String key_control_msg = std_msgs::msg::String();
+                key_control_msg.data = json_stream.str();
+                RCLCPP_DEBUG(rclcpp::get_logger("rclcpp"), "Publishing JSON: %s", key_control_msg.data.c_str());
+                rf_transmit_pub_->publish(key_control_msg);
+                
+                RCLCPP_DEBUG(rclcpp::get_logger("rclcpp"), "Key control command sent to Coug %d through radio", vehicle_id);
             return;
         } else {    
-            RCLCPP_WARN(rclcpp::get_logger("rclcpp"), "No connection to coug %d, cannot send keyboard controls", msg->vehicle_id);
+            RCLCPP_WARN(rclcpp::get_logger("rclcpp"), "No connection to coug %d, cannot send keyboard controls", vehicle_id);
             return;
         }
     }
@@ -263,24 +275,16 @@ public:
         // Attempts to request through radio first, if the vehicle is connected via radio
         // If the vehicle is not connected via radio, it attempts to request through modem
         if (radio_connection[beacon_id]) {
+            std::ostringstream json_stream;
+            json_stream << "{"
+                        << "\"vehicle_id\":" << beacon_id << ","
+                        << "\"message\":\"STATUS\""
+                        << "}";
+            std_msgs::msg::String status_msg = std_msgs::msg::String();
+            status_msg.data = json_stream.str();
+            RCLCPP_DEBUG(rclcpp::get_logger("rclcpp"), "Requesting status from Coug %i through radio", beacon_id);
+            rf_transmit_pub_->publish(status_msg);
 
-            if (!radio_status_request_client_->wait_for_service(std::chrono::seconds(1))) {
-                RCLCPP_WARN(rclcpp::get_logger("rclcpp"),
-                    "Radio status request service not available for Coug %i. Skipping request.", beacon_id);
-                return;
-            }
-            auto result_future = radio_status_request_client_->async_send_request(request,
-                [this, beacon_id](rclcpp::Client<base_station_interfaces::srv::BeaconId>::SharedFuture future) {
-                    try {
-                        auto response = future.get();
-                        if (response->success)
-                            RCLCPP_DEBUG(rclcpp::get_logger("rclcpp"), "Requesting status from Coug %i through radio", beacon_id);
-                        else
-                            RCLCPP_WARN(rclcpp::get_logger("rclcpp"), "Status request from Coug %i through radio failed", beacon_id);
-                    } catch (const std::exception& e) {
-                        RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Exception while requesting status from Coug %i: %s", beacon_id, e.what());
-                    }
-                });
         } else if ((this->get_clock()->now() - last_modem_status).seconds() > this->modem_status_buffer) {
 
             if (!modem_connection[beacon_id]){
@@ -335,15 +339,11 @@ public:
             
             } else if (radio_connection[beacon_id]){
 
-                radio_e_kill_client_->async_send_request(request,
-                    [this, beacon_id](rclcpp::Client<base_station_interfaces::srv::BeaconId>::SharedFuture future) {
-                        auto response = future.get();
-                        if (response->success)
-                            RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Kill command sent to Coug %i through radio", beacon_id);
-                        else
-                            RCLCPP_WARN(rclcpp::get_logger("rclcpp"), "Kill command sent to Coug %i through radio failed", beacon_id);
-                    });
+                std_msgs::msg::String e_kill_msg = std_msgs::msg::String();
+                e_kill_msg.data = "E_KILL";
+                rf_transmit_pub_->publish(e_kill_msg);
                 response->success = true;
+                RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Sending E_KILL to Coug %i through radio", beacon_id);
 
             } else if (modem_connection[beacon_id]) {
                 
@@ -414,14 +414,24 @@ public:
                     });
                 response->success = true;
             } else if (radio_connection[vehicle_id]) {
-                radio_init_client_->async_send_request(request,
-                    [this, vehicle_id](rclcpp::Client<base_station_interfaces::srv::Init>::SharedFuture future) {
-                        auto response = future.get();
-                        if (response->success)
-                            RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Init command sent to Coug %i through radio", vehicle_id);
-                        else
-                            RCLCPP_WARN(rclcpp::get_logger("rclcpp"), "Init command sent to Coug %i through radio failed", vehicle_id);
-                    });
+                RCLCPP_DEBUG(rclcpp::get_logger("rclcpp"), "Received initialization request for Coug %i", vehicle_id);
+                
+                std::ostringstream json_stream;
+                json_stream << "{"
+                           << "\"vehicle_id\":" << vehicle_id << ","
+                           << "\"message\":\"INIT\","
+                           << "\"start\":" << (request->start.data ? "true" : "false") << ","
+                           << "\"rosbag_flag\":" << (request->rosbag_flag.data ? "true" : "false") << ","
+                           << "\"rosbag_prefix\":\"" << request->rosbag_prefix << "\","
+                           << "\"thruster_arm\":" << (request->thruster_arm.data ? "true" : "false") << ","
+                           << "\"dvl_acoustics\":" << (request->dvl_acoustics.data ? "true" : "false")
+                           << "}";
+                
+                std_msgs::msg::String init_msg;
+                init_msg.data = json_stream.str();
+                rf_transmit_pub_->publish(init_msg);
+                
+                RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Init command sent to Coug %i through radio", vehicle_id);
                 response->success = true;
             } else if (modem_connection[vehicle_id]) {
 
@@ -518,16 +528,15 @@ private:
     rclcpp::Subscription<base_station_interfaces::msg::Connections>::SharedPtr connections_subscriber_;
 
     rclcpp::Client<base_station_interfaces::srv::BeaconId>::SharedPtr wifi_e_kill_client_;
-    rclcpp::Client<base_station_interfaces::srv::BeaconId>::SharedPtr radio_e_kill_client_;
     rclcpp::Client<base_station_interfaces::srv::BeaconId>::SharedPtr modem_e_kill_client_;
     rclcpp::Client<base_station_interfaces::srv::BeaconId>::SharedPtr modem_e_surface_client_;
-    rclcpp::Client<base_station_interfaces::srv::BeaconId>::SharedPtr radio_status_request_client_;
     rclcpp::Client<base_station_interfaces::srv::BeaconId>::SharedPtr modem_status_request_client_;
     rclcpp::Client<base_station_interfaces::srv::Init>::SharedPtr wifi_init_client_;
     rclcpp::Client<base_station_interfaces::srv::Init>::SharedPtr modem_init_client_;
-    rclcpp::Client<base_station_interfaces::srv::Init>::SharedPtr radio_init_client_;
     rclcpp::Client<base_station_interfaces::srv::LoadMission>::SharedPtr wifi_load_mission_client_;
     rclcpp::Client<base_station_interfaces::srv::LoadMission>::SharedPtr radio_load_mission_client_;
+
+    rclcpp::Publisher<std_msgs::msg::String>::SharedPtr rf_transmit_pub_;
 
 
     rclcpp::Service<base_station_interfaces::srv::BeaconId>::SharedPtr emergency_kill_service_;
@@ -544,13 +553,11 @@ private:
     std::unordered_map<int64_t, rclcpp::Publisher<sensor_msgs::msg::BatteryState>::SharedPtr> battery_publishers_;
     std::unordered_map<int64_t, rclcpp::Publisher<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr> depth_publishers_;
     std::unordered_map<int64_t, rclcpp::Publisher<sensor_msgs::msg::FluidPressure>::SharedPtr> pressure_publishers_;
-    std::unordered_map<int64_t, rclcpp::Subscription<cougars_interfaces::msg::UCommand>::SharedPtr> keyboard_controls_subscribers_;
 
     std::unordered_map<int,bool> radio_connection;
     std::unordered_map<int,bool> modem_connection;
     std::unordered_map<int,bool> wifi_connection;
 
-    rclcpp::Publisher<base_station_interfaces::msg::UCommandBase>::SharedPtr radio_key_publisher_;
     rclcpp::Publisher<base_station_interfaces::msg::UCommandBase>::SharedPtr wifi_key_publisher_;
 
 
