@@ -21,12 +21,10 @@ class Base_Station_Wifi(Node):
         self.get_logger().info("Base Station WiFi Node Initialized")
 
         self.declare_parameter('vehicles_in_mission', [1,2,3])
-        self.declare_parameter('wifi_enabled', True)
+
         
         
         self.vehicles_in_mission = self.get_parameter('vehicles_in_mission').value
-        self.wifi_enabled = self.get_parameter('wifi_enabled').value
-
         # publishes connections messages
         self.wifi_connection_publisher = self.create_publisher(Connections, 'connections', 10)
 
@@ -72,8 +70,7 @@ class Base_Station_Wifi(Node):
         self.ping_rate_seconds = 2
         self.max_missed_pings = 2
         # timer that calls check connections
-        if self.wifi_enabled:
-            self.create_timer(self.ping_rate_seconds, self.check_connections)
+        self.create_timer(self.ping_rate_seconds, self.check_connections)
 
 
     def ping_single_ip(self, vehicle, ip):

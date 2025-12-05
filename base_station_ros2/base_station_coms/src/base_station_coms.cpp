@@ -46,6 +46,9 @@ public:
         this->declare_parameter<std::vector<int64_t>>("vehicles_in_mission", {1,2,5});
         this->vehicles_in_mission_ = this->get_parameter("vehicles_in_mission").as_integer_array();
 
+        this->declare_parameter<bool>("wifi_enabled", true);
+        this->wifi_enabled_ = this->get_parameter("wifi_enabled").as_bool();
+
         // When true the node will periodically request status from vehicles in mission
         bool request_status = this->declare_parameter<bool>("request_status", true);
 
@@ -205,7 +208,7 @@ public:
                 radio_connection[beacon_id] = msg->connections[i];
             } else if (msg->connection_type == 0) {
                 modem_connection[beacon_id] = msg->connections[i];
-            } else if (msg->connection_type == 2) {
+            } else if (msg->connection_type == 2 && wifi_enabled_) {
                 wifi_connection[beacon_id] = msg->connections[i];
             }
         }
@@ -557,6 +560,7 @@ private:
 
     double status_request_frequency;
     double modem_status_buffer;
+    bool wifi_enabled_;
     rclcpp::Time last_modem_status;
 
 };
