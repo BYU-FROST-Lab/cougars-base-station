@@ -49,6 +49,7 @@ private:
   bool command_dirty_;  // Flag to track if we need to publish
   double publish_rate_hz_;  // Configurable publish rate
   bool thruster_enabled_;  // Flag to enable/disable thruster
+  bool publishing_enabled_;  // Flag to enable/disable publishing and GUI printing
   // Invert controls (configurable)
   bool invert_vertical_controls_;
   bool invert_lateral_controls_;
@@ -60,7 +61,7 @@ private:
 
 TeleopCommand::TeleopCommand() :
   Node("teleop_command"),
-  fin1_(0.0), fin2_(0.0), fin3_(0.0), current_vehicle_index_(0), command_dirty_(false), thruster_enabled_(false)
+  fin1_(0.0), fin2_(0.0), fin3_(0.0), current_vehicle_index_(0), command_dirty_(false), thruster_enabled_(false), publishing_enabled_(false)
 {
   declare_parameter("max_fin_value", 70.0);
   declare_parameter("thruster_value", 0);
@@ -188,6 +189,7 @@ void TeleopCommand::keyLoop()
   puts("A/Left: Turn left, D/Right: Turn right");
   puts("Spacebar: +thruster, R/Period/Comma: -thruster");
   puts("Q: Toggle thruster enable/disable");
+  puts("Z: Toggle publishing and GUI printing on/off");
   puts("E: Switch vehicle");
   puts("Ctrl+C to quit");
   puts("NOTE: This node also accepts key presses from the GUI via ROS messages");
@@ -283,8 +285,10 @@ void TeleopCommand::switchVehicle()
 
 void TeleopCommand::timerCallback()
 {
-  // Publish at a steady rate regardless of changes
-  publishCommand();
+  // Publish at a steady rate regardless of changes (only if publishing is enabled)
+  if (publishing_enabled_) {
+    publishCommand();
+  }
   command_dirty_ = false;  // Reset the flag (we published current state)
 }
 
@@ -307,7 +311,7 @@ void TeleopCommand::publishCommand()
   command_pub_->publish(last_command_msg_);
   
   int effective_thruster = thruster_enabled_ ? thruster_value_ : 0;
-  RCLCPP_INFO(get_logger(), "Vehicle %d - Fins: [%.1f, %.1f, %.1f] deg, Thruster: %d %s", 
+  RCLCPP_DEBUG(get_logger(), "Vehicle %d - Fins: [%.1f, %.1f, %.1f] deg, Thruster: %d %s", 
               vehicle_id_, fin1_, fin2_, fin3_, effective_thruster,
               thruster_enabled_ ? "(ENABLED)" : "(DISABLED)");
   
@@ -390,6 +394,15 @@ void TeleopCommand::processKey(char key)
                        " for vehicle " + std::to_string(vehicle_id_));
       command_dirty_ = true;  // Mark for publishing to update thruster state
       break;
+    case 'z':
+    case 'Z':
+      publishing_enabled_ = !publishing_enabled_;  // Toggle publishing and GUI printing
+      RCLCPP_INFO(get_logger(), "Publishing and GUI printing %s", publishing_enabled_ ? "ENABLED" : "DISABLED");
+      // This message will only be sent if publishing is now enabled
+      if (publishing_enabled_) {
+        publishConsoleLog("Publishing and GUI printing ENABLED for vehicle " + std::to_string(vehicle_id_));
+      }
+      break;
     default:
       // Ignore unknown keys
       break;
@@ -407,13 +420,15 @@ bool TeleopCommand::tryApplyChange(const std::function<void()> &apply_fn)
   apply_fn();
   last_change_time_ = now;
   command_dirty_ = true;
-  // Publish immediate console log about the change showing current ucommand values
-  int effective_thruster = thruster_enabled_ ? thruster_value_ : 0;
-  std::ostringstream oss;
-  oss << std::fixed << std::setprecision(1);
-  oss << "Vehicle " << vehicle_id_ << " - Fins: [" << fin1_ << ", " << fin2_ << ", " << fin3_ << "] deg, Thruster: "
-      << effective_thruster << (thruster_enabled_ ? " (ENABLED)" : " (DISABLED)");
-  publishConsoleLog(oss.str(), vehicle_id_);
+  // Publish immediate console log about the change showing current ucommand values (only if publishing is enabled)
+  if (publishing_enabled_) {
+    int effective_thruster = thruster_enabled_ ? thruster_value_ : 0;
+    std::ostringstream oss;
+    oss << std::fixed << std::setprecision(1);
+    oss << "Vehicle " << vehicle_id_ << " - Fins: [" << fin1_ << ", " << fin2_ << ", " << fin3_ << "] deg, Thruster: "
+        << effective_thruster << (thruster_enabled_ ? " (ENABLED)" : " (DISABLED)");
+    publishConsoleLog(oss.str(), vehicle_id_);
+  }
   return true;
 }
 

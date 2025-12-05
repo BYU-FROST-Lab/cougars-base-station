@@ -19,8 +19,13 @@ class Base_Station_Wifi(Node):
     def __init__(self):
         super().__init__('base_station_wifi')
         self.get_logger().info("Base Station WiFi Node Initialized")
+
         self.declare_parameter('vehicles_in_mission', [1,2,3])
+        self.declare_parameter('wifi_enabled', True)
+        
+        
         self.vehicles_in_mission = self.get_parameter('vehicles_in_mission').value
+        self.wifi_enabled = self.get_parameter('wifi_enabled').value
 
         # publishes connections messages
         self.wifi_connection_publisher = self.create_publisher(Connections, 'connections', 10)
@@ -67,7 +72,9 @@ class Base_Station_Wifi(Node):
         self.ping_rate_seconds = 2
         self.max_missed_pings = 2
         # timer that calls check connections
-        self.create_timer(self.ping_rate_seconds, self.check_connections)
+        if self.wifi_enabled:
+            self.create_timer(self.ping_rate_seconds, self.check_connections)
+
 
     def ping_single_ip(self, vehicle, ip):
         """Ping a single IP address using system ping command"""
@@ -87,8 +94,8 @@ class Base_Station_Wifi(Node):
 
     def keyboard_controls_callback(self, msg):
         """Callback for keyboard controls messages, republishes to the appropriate vehicle topic"""
-        self.get_logger().info(f"Received keyboard controls for vehicle {msg.vehicle_id}")
-        self.get_logger().info(f"Thruster enabled: {msg.thruster_enabled}, Current state: {self.thruster_enabled[msg.vehicle_id]}")
+        self.get_logger().debug(f"Received keyboard controls for vehicle {msg.vehicle_id}")
+        self.get_logger().debug(f"Thruster enabled: {msg.thruster_enabled}, Current state: {self.thruster_enabled[msg.vehicle_id]}")
         
         # Always publish the command first to ensure it gets sent
         command_msg = msg.ucommand

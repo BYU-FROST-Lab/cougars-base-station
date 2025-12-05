@@ -536,7 +536,7 @@ class RFBridge(Node):
             self.get_logger().warn(f"Received keyboard controls for unknown vehicle ID {vehicle_id}. Ignoring.")
             return
         if self.connections.get(vehicle_id, False):
-            self.get_logger().info(f"Sending keyboard controls to Coug {vehicle_id} through radio")
+            self.get_logger().debug(f"Sending keyboard controls to Coug {vehicle_id} through radio")
             key_msg = {
                 "message": "KEY_CONTROL",
                 "command": {

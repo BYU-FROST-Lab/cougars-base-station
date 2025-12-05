@@ -216,11 +216,11 @@ public:
 
         // if wifi connection, send to wifi keyboard controls
         if (wifi_connection[msg->vehicle_id]) {
-            RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Sending keyboard controls for coug %d over wifi", msg->vehicle_id);
+            RCLCPP_DEBUG(rclcpp::get_logger("rclcpp"), "Sending keyboard controls for coug %d over wifi", msg->vehicle_id);
             wifi_key_publisher_->publish(*msg);
             return;
         } else if (radio_connection[msg->vehicle_id]) {
-            RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Sending keyboard controls for coug %d over radio", msg->vehicle_id);
+            RCLCPP_DEBUG(rclcpp::get_logger("rclcpp"), "Sending keyboard controls for coug %d over radio", msg->vehicle_id);
             radio_key_publisher_->publish(*msg);
             return;
         } else {    
