@@ -9,6 +9,7 @@
 #include "std_msgs/msg/bool.hpp"
 #include "base_station_interfaces/msg/console_log.hpp"
 #include "base_station_interfaces/srv/init.hpp"
+#include "std_msgs/msg/u_int8_multi_array.hpp"
 
 
 
@@ -47,31 +48,14 @@ public:
             "modem_rec", 10,
             std::bind(&ModemComs::listen_to_modem, this, _1)
         );
+        
+        this->modem_transmit_subscriber_ = this->create_subscription<std_msgs::msg::UInt8MultiArray>(
+            "modem_transmit", 10,
+            std::bind(&ModemComs::send_acoustic_message, this, _1)
+        );
+
+        // publisher for ModemSend messages, which are sent to the cougs
         this->modem_publisher_ = this->create_publisher<seatrac_interfaces::msg::ModemSend>("modem_send", 10);
-
-        // service that requests the status of a vehicle specified in the request
-        request_status_service_ = this->create_service<base_station_interfaces::srv::BeaconId>(
-            "modem_status_request",
-            std::bind(&ModemComs::status_request_callback, this, _1, _2)
-        );
-
-        // service that sends an emergency kill command to a vehicle specified in the request
-        emergency_kill_service_ = this->create_service<base_station_interfaces::srv::BeaconId>(
-            "modem_e_kill",
-            std::bind(&ModemComs::emergency_kill_callback, this, _1, _2)
-        );
-
-        // service that sends an emergency surface command to a vehicle specified in the request
-        emergency_surface_service_ = this->create_service<base_station_interfaces::srv::BeaconId>(
-            "modem_e_surface",
-            std::bind(&ModemComs::emergency_surface_callback, this, _1, _2)
-        );
-
-        // service that sends an init command to a vehicle specified in the request
-        init_service_ = this->create_service<base_station_interfaces::srv::Init>(
-            "modem_init",
-            std::bind(&ModemComs::init_callback, this, _1, _2)
-        );
 
         // publisher for the status of the cougs, published to the status topic
         this->status_publisher_ = this->create_publisher<base_station_interfaces::msg::Status>("status", 10);
@@ -116,54 +100,32 @@ public:
         }
     }
 
-    
-
-    // Sends emergency kill signal to coug specified in request
-    void emergency_kill_callback(const std::shared_ptr<base_station_interfaces::srv::BeaconId::Request> request,
-                                    std::shared_ptr<base_station_interfaces::srv::BeaconId::Response> response)
-    {
-        EmergencyKill e_kill_msg;
-        send_acoustic_message(request->beacon_id, sizeof(e_kill_msg), (uint8_t*)&e_kill_msg, MSG_OWAY);
-        // RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Emergency Kill Signal Sent to Coug %i", request->beacon_id);
-        response->success = true;
-    }
-
-
-    // Sends emergency surface signal to coug specified in request
-    void emergency_surface_callback(const std::shared_ptr<base_station_interfaces::srv::BeaconId::Request> request,
-                                    std::shared_ptr<base_station_interfaces::srv::BeaconId::Response> response)      
-    {
-        EmergencySurface e_surface_msg;
-        send_acoustic_message(request->beacon_id, sizeof(e_surface_msg), (uint8_t*)&e_surface_msg, MSG_OWAY);
-        // RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Emergency Surface Signal Sent to Coug %i", request->beacon_id);
-        response->success = true;
-    }
-
-    // requests status of coug specified in request
-    void status_request_callback(const std::shared_ptr<base_station_interfaces::srv::BeaconId::Request> request,
-                                    std::shared_ptr<base_station_interfaces::srv::BeaconId::Response> response)
-    {
-        RCLCPP_DEBUG(rclcpp::get_logger("rclcpp"), "Requesting Status of Coug %i", request->beacon_id);
-        this->messages_missed_[request->beacon_id]++;
-
-        RequestStatus request_status_msg;
-        send_acoustic_message(request->beacon_id, sizeof(request_status_msg), (uint8_t*)&request_status_msg, MSG_OWAY);
-        // RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Requesting Status of Coug %i", request->beacon_id);
-        response->success = true;
-    }
-
-    void init_callback(const std::shared_ptr<base_station_interfaces::srv::Init::Request> request,
-                        std::shared_ptr<base_station_interfaces::srv::Init::Response> response)
-    {
-        RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Init command received for Coug %i", request->vehicle_id);
-
-        Init init_msg;
-        init_msg.init_bitmask = (request->start.data ? 0x01 : 0x00) | (request->rosbag_flag.data ? 0x02 : 0x00) | (request->thruster_arm.data ? 0x04 : 0x00) | (request->dvl_acoustics.data ? 0x08 : 0x00);
-        strncpy(init_msg.rosbag_prefix, request->rosbag_prefix.c_str(), sizeof(init_msg.rosbag_prefix) - 1);
-        init_msg.rosbag_prefix[sizeof(init_msg.rosbag_prefix) - 1] = '\0';  // Ensure null termination
-
-        send_acoustic_message(request->vehicle_id, sizeof(init_msg), (uint8_t*)&init_msg, MSG_OWAY);
-        response->success = true;
+    // Callback for modem transmit subscriber - receives uint8 array to send to vehicle
+    void send_acoustic_message(const std_msgs::msg::UInt8MultiArray::SharedPtr msg) {
+        if (msg->data.empty()) {
+            RCLCPP_WARN(rclcpp::get_logger("rclcpp"), "Received empty modem transmit message");
+            return;
+        }
+        
+        // First byte is target vehicle ID
+        int target_id = msg->data[0];
+        
+        // Remaining bytes are the payload
+        std::vector<uint8_t> payload(msg->data.begin() + 1, msg->data.end());
+        
+        RCLCPP_DEBUG(rclcpp::get_logger("rclcpp"), "Sending acoustic message to vehicle %d with payload size %zu", 
+                     target_id, payload.size());
+        
+        auto request = seatrac_interfaces::msg::ModemSend();
+        request.msg_id = CID_DAT_SEND;
+        request.dest_id = (uint8_t)target_id;
+        request.msg_type = payload[0];
+        request.packet_len = (uint8_t)std::min(payload.size(), size_t(31));
+        // request.insert_timestamp = true;
+        std::memcpy(&request.packet_data, payload.data(), request.packet_len);
+       
+        this->modem_publisher_->publish(request);
+        this->messages_missed_[target_id]++; // increment messages missed until a response is recieved
     }
 
     // publishes the status recieved through the modem
@@ -252,7 +214,7 @@ public:
         for (auto id : this->vehicles_in_mission_) {
             if (this->messages_missed_[id] >= this->max_missed_messages) {
                 if (this->modem_connection[id]) {
-                    RCLCPP_WARN(this->get_logger(), "Coug %i has missed %i or more messages, marking as disconnected", id, this->max_missed_messages);
+                    RCLCPP_WARN(this->get_logger(), "Coug %li has missed %i or more messages, marking as disconnected", id, this->max_missed_messages);
                     this->modem_connection[id] = false;
                 }
                 msg.connections.push_back(false);
@@ -267,23 +229,6 @@ public:
         modem_connections_publisher_->publish(msg);
    }
 
-   
-    //used by the service callback functions to publish messages to the cougs
-    void send_acoustic_message(int target_id, int message_len, uint8_t* message, AMSGTYPE_E msg_type) {
-
-
-        auto request = seatrac_interfaces::msg::ModemSend();
-        request.msg_id = CID_DAT_SEND;
-        request.dest_id = (uint8_t)target_id;
-        request.msg_type = msg_type;
-        request.packet_len = (uint8_t)std::min(message_len, 31);
-        // request.insert_timestamp = true;
-        std::memcpy(&request.packet_data, message, request.packet_len);
-       
-        this->modem_publisher_->publish(request);
-    }
-
-
 
 
 private:
@@ -291,15 +236,11 @@ private:
 
     rclcpp::Subscription<seatrac_interfaces::msg::ModemRec>::SharedPtr modem_subscriber_;
     rclcpp::Publisher<seatrac_interfaces::msg::ModemSend>::SharedPtr modem_publisher_;
+    rclcpp::Subscription<std_msgs::msg::UInt8MultiArray>::SharedPtr modem_transmit_subscriber_;
 
     rclcpp::Publisher<base_station_interfaces::msg::Status>::SharedPtr status_publisher_;
     rclcpp::Publisher<base_station_interfaces::msg::Connections>::SharedPtr modem_connections_publisher_;
     rclcpp::Publisher<base_station_interfaces::msg::ConsoleLog>::SharedPtr print_to_gui_pub;
-
-    rclcpp::Service<base_station_interfaces::srv::BeaconId>::SharedPtr emergency_surface_service_;
-    rclcpp::Service<base_station_interfaces::srv::BeaconId>::SharedPtr emergency_kill_service_;
-    rclcpp::Service<base_station_interfaces::srv::BeaconId>::SharedPtr request_status_service_;
-    rclcpp::Service<base_station_interfaces::srv::Init>::SharedPtr init_service_;
 
 
     rclcpp::TimerBase::SharedPtr timer_;
