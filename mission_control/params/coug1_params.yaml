@@ -124,4 +124,4 @@ coug1: # Change this to match the vehicle name
   param_reloader:
     ros__parameters:
       param_file_path: "/home/frostlab/config/deploy_tmp/coug1_params.yaml"
-      targert_node: ['/coug1/coug_controls', '/coug1/coug_kinematics', '/coug1/cougars_coms', '/coug1/manual_mission']
+      target_node: ['/coug1/coug_controls', '/coug1/coug_kinematics', '/coug1/cougars_coms', '/coug1/manual_mission']
