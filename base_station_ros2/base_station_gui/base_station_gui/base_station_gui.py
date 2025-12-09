@@ -923,10 +923,6 @@ class MainWindow(QMainWindow):
         self.replace_confirm_reject_label(msg)
         self.recieve_console_update(msg, vehicle_number)
 
-        msg = f"Loading Vehicle{vehicle_number} mission..."
-        self.replace_confirm_reject_label(msg)
-        self.recieve_console_update(msg, vehicle_number)
-
         dlg = LoadMissionsDialog(parent=self, background_color=self.background_color, text_color=self.text_color, pop_up_window_style=self.pop_up_window_style, selected_vehicles=[vehicle_number])
         if dlg.exec():
             start_config = dlg.get_states()
