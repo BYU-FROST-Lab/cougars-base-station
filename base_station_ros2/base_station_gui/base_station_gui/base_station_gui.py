@@ -860,7 +860,7 @@ class MainWindow(QMainWindow):
 
             else:
                 err_msg = "Mission Loading command was cancelled."
-                for i in self.selected_vehicles: self.recieve_console_update(err_msg, i)
+                for vehicle_id in self.selected_vehicles: self.recieve_console_update(err_msg, vehicle_id)
                 self.replace_confirm_reject_label(err_msg)
 
     def start_missions_button(self):
