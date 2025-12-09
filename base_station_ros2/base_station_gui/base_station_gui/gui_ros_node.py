@@ -6,13 +6,15 @@ from PyQt6.QtCore import QTimer
 import sys
 import threading
 import signal
+import yaml
+import os
 
 import rclpy
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy
 from rclpy.executors import SingleThreadedExecutor
 from rcl_interfaces.srv import SetParameters
-from rcl_interfaces.msg import Parameter, ParameterValue, ParameterType
+from rcl_interfaces.msg import Parameter as RclParameter, ParameterType
 
 import time
 from std_msgs.msg import String, Bool
@@ -22,7 +24,7 @@ from nav_msgs.msg import Path #used to publish the map viz path
 from sensor_msgs.msg import NavSatFix, FluidPressure, BatteryState #NavSatFix used to publish the origin
 from geometry_msgs.msg import PoseStamped, PoseWithCovariance, PoseWithCovarianceStamped
 
-from base_station_interfaces.srv import BeaconId, Init
+from base_station_interfaces.srv import BeaconId, Init, LoadMission
 from base_station_interfaces.msg import Connections, ConsoleLog
 from cougars_interfaces.msg import SystemStatus, SystemControl, UCommand
 from dvl_msgs.msg import DVLDR, DVL
@@ -136,6 +138,11 @@ class GuiNode(Node):
             f'init_service'
         )
 
+        self.load_mission_client = self.create_client(
+            LoadMission,
+            f'load_mission_service'
+        )
+
         # Subscription for emergency kill confirmation messages
         self.kill_subscription = self.create_subscription(
             Bool,
@@ -172,6 +179,9 @@ class GuiNode(Node):
         # Publisher for console log messages
         self.console_publisher = self.create_publisher(ConsoleLog, 'console_log', 10)
 
+        # Publisher for key press events to teleop
+        self.keypress_publisher = self.create_publisher(String, 'gui_keypress', 10)
+
         # Service clients for emergency kill, surface, and modem shut off services
         self.cli = self.create_client(BeaconId, 'e_kill_service')
         self.cli2 = self.create_client(BeaconId, 'e_surface_service')
@@ -185,6 +195,14 @@ class GuiNode(Node):
         msg.message = msg_text
         msg.vehicle_number = msg_num
         self.console_publisher.publish(msg)
+
+    def publish_keypress(self, key_text):
+        """
+        Publishes a key press event to the 'gui_keypress' topic.
+        """
+        msg = String()
+        msg.data = key_text
+        self.keypress_publisher.publish(msg)
 
     def publish_origin(self, origin_msg):
         """
@@ -232,7 +250,7 @@ class GuiNode(Node):
         # Used by tabbed window in an attempt to ros2 param set the fin angles.
         # TODO: Doesn't seem to be working currently. 
 
-        param = Parameter()
+        param = RclParameter()
         param.name = param_name
         # Set the appropriate type for the parameter value
         if isinstance(param_value, str):
@@ -260,6 +278,35 @@ def ros_spin_thread(executor):
     """
     executor.spin()
 
+def get_vehicles_from_params():
+    """
+    Reads the vehicles_in_mission parameter from the parameter file or environment.
+    Returns a list of vehicle numbers to create tabs for.
+    """
+    # Try to read directly from the parameter file
+    param_file_path = os.path.expanduser("~/config/base_station_params.yaml")
+    
+    try:
+        if os.path.exists(param_file_path):
+            with open(param_file_path, 'r') as file:
+                params = yaml.safe_load(file)
+                # Navigate the YAML structure: /**/ros__parameters/vehicles_in_mission
+                if params and '/**' in params:
+                    ros_params = params['/**'].get('ros__parameters', {})
+                    vehicles_list = ros_params.get('vehicles_in_mission', [1, 2, 3, 4])
+                    print(f"GUI: Read vehicles_in_mission from parameter file: {vehicles_list}")
+                    return vehicles_list
+                else:
+                    print(f"GUI: Parameter file structure not found, using default vehicles [1,2,3,4]")
+                    return [1, 2, 3, 4]
+        else:
+            print(f"GUI: Parameter file not found at {param_file_path}, using default vehicles [1,2,3,4]")
+            return [1, 2, 3, 4]
+            
+    except Exception as e:
+        print(f"GUI: Failed to read parameter file: {e}, using default [1,2,3,4]")
+        return [1, 2, 3, 4]  # Default fallback
+
 def main():
     """     
     Main entry point for the GUI application.
@@ -267,8 +314,11 @@ def main():
     """
     rclpy.init()
 
+    # Get the vehicles list from ROS parameters
+    selected_cougs = get_vehicles_from_params()
+
     # Create the Qt application and main window (window will be set later)
-    app, result, selected_cougs = base_station_gui.base_station_gui.OpenWindow(None, borders=False)
+    app, result = base_station_gui.base_station_gui.OpenWindow(None, selected_cougs, borders=False)
 
     def after_window_ready():
         """

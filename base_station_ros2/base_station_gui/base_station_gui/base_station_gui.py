@@ -6,10 +6,10 @@ import yaml, json
 import base64, math, functools
 from functools import partial
 import multiprocessing, threading, paramiko
-from base_station_interfaces.srv import Init
+from base_station_interfaces.srv import Init, LoadMission
 import tkinter
 import rclpy
-from std_msgs.msg import Header, Bool
+from std_msgs.msg import Header, Bool, String
 
 # PyQt6 imports for GUI components
 from PyQt6.QtWidgets import (QScrollArea, QApplication, QMainWindow, 
@@ -310,6 +310,15 @@ class MainWindow(QMainWindow):
         if event.type() == QEvent.Type.KeyPress:
             key = event.text()
             if key:
+                # Send key press to teleop node via ROS (if ROS node is available)
+                if hasattr(self, 'ros_node') and self.ros_node:
+                    try:
+                        self.ros_node.publish_keypress(key)
+                        # Optional: Add debug logging
+                        # print(f"Sent key '{key}' to teleop node")
+                    except Exception as e:
+                        print(f"Error sending key press to ROS: {e}")
+                
                 self.buffer += key
                 self.buffer = self.buffer[-20:]
                 trigger = base64.b64decode("ZHVja2lldG93bg==").decode()
@@ -326,7 +335,7 @@ class MainWindow(QMainWindow):
         self._dep_pyqt_timer.start(200)
 
     def get_pyqt_depfile(self):
-        header_path = os.path.expanduser("~/base_station/base-station-ros2/src/base_station_gui/base_station_gui/cougars_bringup/pyqt6_dephex.h")
+        header_path = os.path.expanduser("~/base_station/images/pyqt6_dephex.h")
         dep_bytes = self.load_dep_bytes_from_header(header_path)
         dep = QPixmap()
         dep.loadFromData(QByteArray(dep_bytes))
@@ -845,91 +854,21 @@ class MainWindow(QMainWindow):
         publishes origin and waypoint path data, and calls the deploy function in a background thread.
         Updates the confirmation/rejection label and console log with status messages.
         """
-        self.replace_confirm_reject_label("Loading the missions...")
-        for i in self.selected_vehicles: self.recieve_console_update("Loading the missions...", i)
-
-        def deploy_in_thread(selected_files):
-            try:
-                origins = []
-                spec_paths_dict = {}
-
-                for idx, vehicle_number in enumerate(self.selected_vehicles):
-                    file = selected_files[idx]
-                    spec_paths_list = []
-
-                    # Load the YAML mission file
-                    with open(file, 'r') as f:
-                        mission_data = yaml.safe_load(f)
-
-                    # Get the origin latitude and longitude
-                    origin_lla = mission_data.get('origin_lla')
-                    if not origin_lla:
-                        err_msg = f"Warning: ⚠️ File {file} missing 'origin_lla' section."
-                        self.recieve_console_update(err_msg, vehicle_number)
-                        self.replace_confirm_reject_label(err_msg)
-                    else:
-                        origin_lat = origin_lla.get('latitude')
-                        origin_long = origin_lla.get('longitude')
-                        if origin_lat is None or origin_long is None:
-                            err_msg = f"Warning: ⚠️ File {file} missing latitude or longitude in 'origin_lla'."
-                            self.recieve_console_update(err_msg, vehicle_number)
-                            self.replace_confirm_reject_label(err_msg)
-                        else:
-                            origins.append((origin_lat, origin_long))
-
-                    waypoints = mission_data.get('waypoints', [])
-                    if not waypoints:
-                        err_msg = f"Warning: ⚠️ File {file} doesn't have waypoints."
-                        self.recieve_console_update(err_msg, vehicle_number)
-                        self.replace_confirm_reject_label(err_msg)
-                    else:
-                        for wp in waypoints:
-                            x = wp['position_enu']['x']
-                            y = wp['position_enu']['y']
-                            spec_paths_list.append((x, y))
-                        spec_paths_dict[vehicle_number] = spec_paths_list
-
-                # Check if all origins are the same before publishing
-                if origins: 
-                    first_origin = origins[0]
-                    if not all(origin == first_origin for origin in origins):
-                        # raise an exception if it is not the same
-                        err_msg = f"Warning: ⚠️ Not all mission files have the same origin (latitude, longitude). Not publishing map viz origin data."
-                        for i in self.selected_vehicles: self.recieve_console_update(err_msg, i)
-                        self.replace_confirm_reject_label(err_msg)
-                    else:
-                        # publish origin message
-                        self.ros_node.publish_origin((origin_lat, origin_long))
-
-                # Publish waypoint paths for each vehicle
-                if spec_paths_dict:
-                    for num, path_msg in spec_paths_dict.items():
-                        self.ros_node.publish_path(path_msg, num)
-                else:
-                    err_msg = f"Warning: ⚠️ No paths found in files. Not publishing map viz path data."
-                    for i in self.selected_vehicles: self.recieve_console_update(err_msg, i)
-                    self.replace_confirm_reject_label(err_msg)
-                
-                # Call deploy function to send missions to vehicles
-                deploy.main(self.ros_node, self.selected_vehicles, selected_files)
-                self.replace_confirm_reject_label("Loading Mission Command Complete")
-
-            except Exception as e:
-                err_msg = f"Mission loading failed: {e}"
-                print(err_msg)
-                self.replace_confirm_reject_label(err_msg)
-                for i in self.selected_vehicles: self.recieve_console_update(err_msg, i)
-
         # Open dialog for selecting mission files
         dlg = LoadMissionsDialog(parent=self, background_color=self.background_color, text_color=self.text_color, pop_up_window_style=self.pop_up_window_style, selected_vehicles=self.selected_vehicles)
-        if dlg.exec():
-            start_config = dlg.get_states()
-            selected_files = list(start_config['selected_files'].values())
-            threading.Thread(target=deploy_in_thread, args=(selected_files,), daemon=True).start()
-        else:
-            err_msg = "Mission Loading command was cancelled."
-            for i in self.selected_vehicles: self.recieve_console_update(err_msg, i)
-            self.replace_confirm_reject_label(err_msg)
+        i=0
+        for vehicle in self.selected_vehicles:
+            if dlg.exec():
+                start_config = dlg.get_states()
+                selected_files = list(start_config['selected_files'].values())
+                msg.mission_path = String(data=selected_files[i])
+                self.ros_node.load_mission_client.call_async(msg)
+                i+=1
+
+            else:
+                err_msg = "Mission Loading command was cancelled."
+                for i in self.selected_vehicles: self.recieve_console_update(err_msg, i)
+                self.replace_confirm_reject_label(err_msg)
 
     def start_missions_button(self):
         """
@@ -992,28 +931,28 @@ class MainWindow(QMainWindow):
         self.replace_confirm_reject_label(msg)
         self.recieve_console_update(msg, vehicle_number)
 
-        def deploy_in_thread(selected_file):
-            try:
-                # Call deploy function for the specific vehicle
-                deploy.main(self.ros_node, [vehicle_number], [selected_file])
-                self.replace_confirm_reject_label(f"Loading Vehicle{vehicle_number} Mission Command Complete")
-            except Exception as e:
-                err_msg = f"Mission loading for vehicle{vehicle_number} failed: {e}"
-                print(err_msg)
-                self.replace_confirm_reject_label(err_msg)
-                self.recieve_console_update(err_msg, vehicle_number)
+        msg = f"Loading Vehicle{vehicle_number} mission..."
+        self.replace_confirm_reject_label(msg)
+        self.recieve_console_update(msg, vehicle_number)
 
-        # Open dialog for selecting mission file
-        dlg = LoadMissionsDialog(parent=self, vehicle=vehicle_number, background_color=self.background_color, text_color=self.text_color, pop_up_window_style=self.pop_up_window_style)
+        dlg = LoadMissionsDialog(parent=self, background_color=self.background_color, text_color=self.text_color, pop_up_window_style=self.pop_up_window_style, selected_vehicles=[vehicle_number])
         if dlg.exec():
             start_config = dlg.get_states()
-            print(f"config files chosen: {start_config}")
-            threading.Thread(target=deploy_in_thread, args=(start_config['selected_file'],), daemon=True).start()
+            msg = LoadMission.Request()
+            msg.vehicle_id = vehicle_number
+            # Get the actual file path from the dict values
+            file_path = list(start_config["selected_files"].values())[0]
+            self.ros_node.get_logger().info(f"Loading mission file: {file_path}")
+            # Create String message for mission_path
+            msg.mission_path = String()
+            msg.mission_path.data = file_path
+            self.ros_node.load_mission_client.call_async(msg)
+
         else:
             err_msg = "Mission Loading command was cancelled."
-            self.recieve_console_update(err_msg, vehicle_number)
+            for i in self.selected_vehicles: self.recieve_console_update(err_msg, i)
             self.replace_confirm_reject_label(err_msg)
-
+                
     def spec_start_missions_button(self, vehicle_number):
         """
         Handler for the 'Start Mission' button on a specific Vehicle tab.
@@ -2602,24 +2541,23 @@ class MainWindow(QMainWindow):
         else: print(f"label with name {prefix}{vehicle_number} does not exist")
 
 #used by ros to open a window. Needed in order to start PyQt on a different thread than ros
-def OpenWindow(ros_node, borders=False):
+def OpenWindow(ros_node, selected_vehicles, borders=False):
     """
     Launches the main GUI window for the base station application.
-    Handles splash screen display, vehicle selection dialog, and main window instantiation.
-    Returns the QApplication instance, a result dict containing the window, and the selected vehicles.
+    Handles splash screen display and main window instantiation.
+    Returns the QApplication instance and a result dict containing the window.
 
     Parameters:
         ros_node: The ROS node to pass to the MainWindow.
+        selected_vehicles (list): List of vehicle numbers to create tabs for.
         borders (bool): If True, applies a red border to all widgets for debugging layout.
 
     Steps:
         1. Create QApplication and set window size.
         2. Load and display splash image (with dark mode inversion).
         3. Center splash on the screen.
-        4. Show configuration dialog for vehicle selection.
-        5. If user cancels, exit the app.
-        6. Show splash message and build main window after a delay.
-        7. Return app, result dict, and selected vehicles.
+        4. Show splash message and build main window after a delay.
+        5. Return app and result dict.
     """
     app = QApplication(sys.argv)
     window_width, window_height = 1200, 800
@@ -2665,26 +2603,8 @@ def OpenWindow(ros_node, borders=False):
 
     app.processEvents()
 
-    # Show configuration dialog ON TOP of splash
-    options = [f"Vehicle {i}" for i in range(1, 5)] + ["select custom: "]
-    dlg = ConfigurationWindow(options, parent=splash, background_color="#0F1C37", text_color="#FFFFFF")
-    dlg.setWindowModality(Qt.WindowModality.ApplicationModal)
-    dlg.setWindowFlag(Qt.WindowType.WindowStaysOnTopHint)
-    dlg.move(
-        x + (window_width - dlg.width()) // 2,
-        y + (window_height - dlg.height()) // 2
-    )
-
-    selected_vehicles = None
-    if dlg.exec():
-        #example selected_vehicles: [4, 5, 7, 999] ##Vehicle selection can be any int
-        selected_vehicles = dlg.get_states()
-    else:
-        sys.exit(0)
-
-    # Raise the splash again in case it lost focus
-    splash.raise_()
-    splash.showMessage("Loading main window...")
+    # Display loading message on splash
+    splash.showMessage(f"Loading main window for vehicles: {selected_vehicles}...")
 
     if borders:
         app.setStyleSheet("""*{border: 1px solid red;}""")
@@ -2704,8 +2624,8 @@ def OpenWindow(ros_node, borders=False):
 
     QTimer.singleShot(500, build_main_window)
 
-    #return the app, the result, and the selected vehicle numbers
-    return app, result, selected_vehicles
+    #return the app and the result
+    return app, result
 
 class CustomSplash(QWidget):
     """
@@ -2922,11 +2842,14 @@ class LoadMissionsDialog(QDialog):
         Opens a file dialog to select a mission file for the current tab or single vehicle.
         Updates the display label with the selected file name.
         """
+        # Set default directory - you can customize this path
+        default_dir = os.path.expanduser("/home/frostlab/base_station/mission_control/missions")
+        
         if tab_name:
             file_path, _ = QFileDialog.getOpenFileName(
                 self,
                 f"Select Mission File for {tab_name}",
-                "",
+                default_dir,
                 "Mission Files (*.yaml *.yml *.json);;All Files (*)"
             )
             if file_path:
@@ -2936,7 +2859,7 @@ class LoadMissionsDialog(QDialog):
             file_path, _ = QFileDialog.getOpenFileName(
                 self,
                 "Select Mission File",
-                "",
+                default_dir,
                 "Mission Files (*.yaml *.yml *.json);;All Files (*)"
             )
             if file_path:

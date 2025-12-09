@@ -4,12 +4,15 @@
 #include "seatrac_interfaces/msg/modem_rec.hpp"
 #include "seatrac_interfaces/msg/modem_send.hpp"
 #include "base_station_interfaces/srv/beacon_id.hpp"
+#include "base_station_interfaces/srv/load_mission.hpp"
 #include "base_station_interfaces/msg/status.hpp"
 #include "base_station_interfaces/msg/connections.hpp"
+#include "base_station_interfaces/msg/u_command_base.hpp"
 #include "cougars_interfaces/msg/system_status.hpp"
 #include "nav_msgs/msg/odometry.hpp"
 #include "sensor_msgs/msg/battery_state.hpp"
 #include "base_station_interfaces/srv/init.hpp"
+#include "cougars_interfaces/msg/u_command.hpp"
 
 #include "base_station_coms/coms_protocol.hpp"
 #include "base_station_coms/seatrac_enums.hpp"
@@ -42,6 +45,9 @@ public:
         // list of beacon ids of vehicles in mission
         this->declare_parameter<std::vector<int64_t>>("vehicles_in_mission", {1,2,5});
         this->vehicles_in_mission_ = this->get_parameter("vehicles_in_mission").as_integer_array();
+
+        this->declare_parameter<bool>("wifi_enabled", true);
+        this->wifi_enabled_ = this->get_parameter("wifi_enabled").as_bool();
 
         // When true the node will periodically request status from vehicles in mission
         bool request_status = this->declare_parameter<bool>("request_status", true);
@@ -88,6 +94,14 @@ public:
             "radio_init"
         );
 
+        wifi_load_mission_client_ = this->create_client<base_station_interfaces::srv::LoadMission>(
+            "wifi_load_mission"
+        );
+
+        radio_load_mission_client_ = this->create_client<base_station_interfaces::srv::LoadMission>(
+            "radio_load_mission"
+        );
+
         // service for sending e_kill message. Decides whether to send over radio or modem
         emergency_kill_service_ = this->create_service<base_station_interfaces::srv::BeaconId>(
             "e_kill_service",
@@ -105,6 +119,12 @@ public:
             std::bind(&ComsNode::init_callback, this, _1, _2)
         );
 
+
+        load_mission_service_ = this->create_service<base_station_interfaces::srv::LoadMission>(
+            "load_mission_service",
+            std::bind(&ComsNode::load_mission_callback, this, _1, _2)
+        );
+
         // subscriber to the status topic published by the modem and radio nodes
         status_subscriber_ = this->create_subscription<base_station_interfaces::msg::Status>(
             "status", 10,
@@ -115,6 +135,20 @@ public:
         connections_subscriber_ = this->create_subscription<base_station_interfaces::msg::Connections>(
             "connections", 10,
             std::bind(&ComsNode::listen_to_connections, this, _1)
+        );
+
+        // subscriber to the keyboard controls
+        keyboard_controls_subscriber_ = this->create_subscription<base_station_interfaces::msg::UCommandBase>(
+            "keyboard_controls", 10,
+            std::bind(&ComsNode::keyboard_controls_callback, this, _1)
+        );
+
+        wifi_key_publisher_ = this->create_publisher<base_station_interfaces::msg::UCommandBase>(
+            "wifi_keyboard_controls", 10
+        );
+
+        radio_key_publisher_ = this->create_publisher<base_station_interfaces::msg::UCommandBase>(
+            "radio_key_command", 10
         );
 
         // RCLCPP_INFO(this->get_logger(), "request status: %d", request_status);
@@ -139,8 +173,8 @@ public:
                     ros_namespace + "/depth_data", 10);
                 pressure_publishers_[vehicle_id] = this->create_publisher<sensor_msgs::msg::FluidPressure>(
                     ros_namespace + "/pressure/data", 10);
-           }
-       }
+            }
+        }
 
        // Send to all is always true
        modem_connection[0] = true;
@@ -174,9 +208,27 @@ public:
                 radio_connection[beacon_id] = msg->connections[i];
             } else if (msg->connection_type == 0) {
                 modem_connection[beacon_id] = msg->connections[i];
-            } else if (msg->connection_type == 2) {
+            } else if (msg->connection_type == 2 && wifi_enabled_) {
                 wifi_connection[beacon_id] = msg->connections[i];
             }
+        }
+    }
+
+    // Callback for the keyboard controls topic, updates the keyboard controls for each vehicle in mission
+    void keyboard_controls_callback(const base_station_interfaces::msg::UCommandBase::SharedPtr msg) {
+
+        // if wifi connection, send to wifi keyboard controls
+        if (wifi_connection[msg->vehicle_id]) {
+            RCLCPP_DEBUG(rclcpp::get_logger("rclcpp"), "Sending keyboard controls for coug %d over wifi", msg->vehicle_id);
+            wifi_key_publisher_->publish(*msg);
+            return;
+        } else if (radio_connection[msg->vehicle_id]) {
+            RCLCPP_DEBUG(rclcpp::get_logger("rclcpp"), "Sending keyboard controls for coug %d over radio", msg->vehicle_id);
+            radio_key_publisher_->publish(*msg);
+            return;
+        } else {    
+            RCLCPP_WARN(rclcpp::get_logger("rclcpp"), "No connection to coug %d, cannot send keyboard controls", msg->vehicle_id);
+            return;
         }
     }
     
@@ -394,6 +446,44 @@ public:
         }
     }
 
+    void load_mission_callback(const std::shared_ptr<base_station_interfaces::srv::LoadMission::Request> request,
+                               std::shared_ptr<base_station_interfaces::srv::LoadMission::Response> response) {
+        int64_t vehicle_id = request->vehicle_id;
+
+        if (std::find(vehicles_in_mission_.begin(), vehicles_in_mission_.end(), vehicle_id) != vehicles_in_mission_.end()) {
+            // Load the mission for the specified vehicle
+            RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Loading mission for Coug %li", vehicle_id);
+            if (wifi_connection[vehicle_id]) {
+                wifi_load_mission_client_->async_send_request(request,
+                    [this, vehicle_id](rclcpp::Client<base_station_interfaces::srv::LoadMission>::SharedFuture future) {
+                        auto response = future.get();
+                        if (response->success)
+                            RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Load mission command sent to Coug %li through wifi", vehicle_id);
+                        else
+                            RCLCPP_WARN(rclcpp::get_logger("rclcpp"), "Load mission command sent to Coug %li through wifi failed", vehicle_id);
+                    });
+                response->success = true;
+            } else if (radio_connection[vehicle_id]) {
+                radio_load_mission_client_->async_send_request(request,
+                    [this, vehicle_id](rclcpp::Client<base_station_interfaces::srv::LoadMission>::SharedFuture future) {
+                        auto response = future.get();
+                        if (response->success)
+                            RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Load mission command sent to Coug %li through radio", vehicle_id);
+                        else
+                            RCLCPP_WARN(rclcpp::get_logger("rclcpp"), "Load mission command sent to Coug %li through radio failed", vehicle_id);
+                    });
+                response->success = true;
+            } else {
+                RCLCPP_WARN(rclcpp::get_logger("rclcpp"), "Cannot load mission command. No connection to Coug %li", vehicle_id);
+                response->success = false;
+            }
+        } else {
+            RCLCPP_WARN(rclcpp::get_logger("rclcpp"), "Cannot load mission. There is no Vehicle with ID %li", vehicle_id);
+            response->success = false;
+        }
+    }
+
+
     // Callback for the status subscriber, publishes the status of a specific vehicle in mission
     // If the vehicle is in the mission, it publishes the status to the appropriate topics
     void publish_status_callback(const std::shared_ptr<base_station_interfaces::msg::Status> msg) {
@@ -436,22 +526,33 @@ private:
     rclcpp::Client<base_station_interfaces::srv::Init>::SharedPtr wifi_init_client_;
     rclcpp::Client<base_station_interfaces::srv::Init>::SharedPtr modem_init_client_;
     rclcpp::Client<base_station_interfaces::srv::Init>::SharedPtr radio_init_client_;
+    rclcpp::Client<base_station_interfaces::srv::LoadMission>::SharedPtr wifi_load_mission_client_;
+    rclcpp::Client<base_station_interfaces::srv::LoadMission>::SharedPtr radio_load_mission_client_;
+
 
     rclcpp::Service<base_station_interfaces::srv::BeaconId>::SharedPtr emergency_kill_service_;
     rclcpp::Service<base_station_interfaces::srv::BeaconId>::SharedPtr emergency_surface_service_;
     rclcpp::Service<base_station_interfaces::srv::Init>::SharedPtr init_service_;
+    rclcpp::Service<base_station_interfaces::srv::LoadMission>::SharedPtr load_mission_service_;
+
 
     rclcpp::Subscription<base_station_interfaces::msg::Status>::SharedPtr status_subscriber_;
+    rclcpp::Subscription<base_station_interfaces::msg::UCommandBase>::SharedPtr keyboard_controls_subscriber_;
     std::unordered_map<int64_t, rclcpp::Publisher<cougars_interfaces::msg::SystemStatus>::SharedPtr> safety_status_publishers_;
     std::unordered_map<int64_t, rclcpp::Publisher<dvl_msgs::msg::DVLDR>::SharedPtr> dvl_publishers_;
     std::unordered_map<int64_t, rclcpp::Publisher<dvl_msgs::msg::DVL>::SharedPtr> dvl_vel_publishers_;
     std::unordered_map<int64_t, rclcpp::Publisher<sensor_msgs::msg::BatteryState>::SharedPtr> battery_publishers_;
     std::unordered_map<int64_t, rclcpp::Publisher<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr> depth_publishers_;
     std::unordered_map<int64_t, rclcpp::Publisher<sensor_msgs::msg::FluidPressure>::SharedPtr> pressure_publishers_;
+    std::unordered_map<int64_t, rclcpp::Subscription<cougars_interfaces::msg::UCommand>::SharedPtr> keyboard_controls_subscribers_;
 
     std::unordered_map<int,bool> radio_connection;
     std::unordered_map<int,bool> modem_connection;
     std::unordered_map<int,bool> wifi_connection;
+
+    rclcpp::Publisher<base_station_interfaces::msg::UCommandBase>::SharedPtr radio_key_publisher_;
+    rclcpp::Publisher<base_station_interfaces::msg::UCommandBase>::SharedPtr wifi_key_publisher_;
+
 
     std::vector<int64_t> vehicles_in_mission_;
 
@@ -459,6 +560,7 @@ private:
 
     double status_request_frequency;
     double modem_status_buffer;
+    bool wifi_enabled_;
     rclcpp::Time last_modem_status;
 
 };
