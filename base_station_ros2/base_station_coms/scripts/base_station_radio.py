@@ -68,29 +68,15 @@ class RFBridge(Node):
 
         # publishes console log messages to GUI
         self.print_to_gui_publisher = self.create_publisher(ConsoleLog, 'console_log', 10)
-
-        # Service to send emergency kill command
-        self.e_kill_service = self.create_service(BeaconId, 'radio_e_kill', self.send_e_kill_callback)
-
-        # Service to request status from a specific vehicle
-        self.status_service = self.create_service(BeaconId, 'radio_status_request', self.request_status_callback)
         
         self.load_mission_service = self.create_service(LoadMission, 'radio_load_mission', self.load_mission_callback)
 
-        self.init_service = self.create_service(Init, 'radio_init', self.init_callback)
 
         self.subscription = self.create_subscription(
             String,
             'rf_transmit',
             self.tx_callback,
             10)
-        
-        self.key_controls_subscription = self.create_subscription(
-            UCommandBase,
-            'radio_key_command',
-            self.key_controls_callback,
-            10)
-        
     
         self.timer = self.create_timer(self.ping_frequency, self.check_connections)
                     # Thread-safe shutdown flag
@@ -122,11 +108,30 @@ class RFBridge(Node):
     #transmit function
     def tx_callback(self, msg):
         try:
-            message = msg.data
-            self.device.send_data_broadcast(message)
-            self.get_logger().debug(f"Sent via XBee: {message}")
+            try:
+                data = json.loads(msg.data)
+                self.get_logger().debug(f"Decoded JSON data: {data}")
+            except json.JSONDecodeError:
+                self.get_logger().debug(f"Failed to decode JSON from message data {msg.data}. Sending as raw string.")
+                data = msg.data  # If JSON decoding fails, treat payload as a string
+            
+            if isinstance(data, dict) and "vehicle_id" in data:
+                vehicle_id = data.pop("vehicle_id")  # Remove vehicle_id from the message
+                self.get_logger().debug(f"Preparing to send direct message to vehicle {vehicle_id}")
+                # Check if we have the radio address for this vehicle
+                if vehicle_id in self.radio_addresses:
+                    # Send to specific vehicle
+                    self.get_logger().debug(f"Sent targeted message to vehicle {vehicle_id}: {json.dumps(data)}")
+                    self.send_message(json.dumps(data), self.radio_addresses[vehicle_id])
+                    return
+                else:
+                    self.get_logger().warn(f"No radio address found for vehicle {vehicle_id}, broadcasting instead")
+                                        
+            # Broadcast for simple string messages or messages without vehicle_id
+            self.device.send_data_broadcast(msg.data)
+            self.get_logger().debug(f"Broadcast via XBee: {msg.data}")
         except Exception as e:
-            self.get_logger().error(f"XBee transmission error: {str(e)}")
+            self.get_logger().error(f"XBee transmission error for message {msg.data}: {str(e)}")
             self.get_logger().error(traceback.format_exc())
 
     # Function to send a message to a specific address
@@ -137,12 +142,12 @@ class RFBridge(Node):
             self.get_logger().debug(f"Sent via XBee: {msg}")
             return True
         except TransmitException as e:
-            self.get_logger().error(f"XBee transmission error - TransmitException: {e}")
-            self.get_logger().error(traceback.format_exc())
+            self.get_logger().debug(f"XBee transmission error - TransmitException: {e}")
+            self.get_logger().debug(traceback.format_exc())
             return False
         except Exception as e:
-            self.get_logger().error(f"XBee transmission error - Exception: {str(e)}")
-            self.get_logger().error(traceback.format_exc())
+            self.get_logger().debug(f"XBee transmission error - Exception: {str(e)}")
+            self.get_logger().debug(traceback.format_exc())
             return False
 
     # Callback for receiving data from XBee
@@ -214,27 +219,6 @@ class RFBridge(Node):
 
         if self.debug_mode:
             self.get_logger().debug(f"Connections: {self.connections}")
-
-    # Callback for status requests
-    def request_status_callback(self, request, response):
-
-        try:
-            target_vehicle_id = request.beacon_id
-            if target_vehicle_id is None:
-                self.get_logger().error("Status request missing target vehicle ID.")
-                response.success = False
-                return response
-
-            self.get_logger().debug(f"Requesting for Coug {target_vehicle_id}")
-
-            status_request_msg = "STATUS"
-
-            response.success = self.send_message(status_request_msg, self.radio_addresses.get(target_vehicle_id, None))
-        except Exception as e:
-            self.get_logger().error(f"Error processing status request: {e}")
-            response.success = False
-
-        return response
     
     def load_mission_callback(self, request, response):
         try:
@@ -265,7 +249,7 @@ class RFBridge(Node):
             mission_status = "was successful" if success0 else "was not successful"
             self.print_to_gui_publisher.publish(
                     ConsoleLog(
-                        message=f"Mission file sent to Coug {target_vehicle_id} via radio {mission_status}",
+                        message=f"Mission file sent t)o Coug {target_vehicle_id} via radio {mission_status}",
                         vehicle_number=target_vehicle_id
                     )
                 )
@@ -454,62 +438,14 @@ class RFBridge(Node):
 
     # Function to handle received PING messages
     def recieve_ping(self, sender_id, sender_address):
-        # self.get_logger().info(f"Received PING from {sender_id}")
         if sender_id not in self.vehicles_in_mission:
             self.get_logger().warn(f"Received PING from unknown vehicle ID {sender_id}. Ignoring.")
             return
+        
         self.radio_addresses[sender_id] = sender_address
         self.ping_timestamp[sender_id] = time.time()
         self.connections[sender_id] = True
 
-
-    def init_callback(self, request, response):
-        try:
-            target_vehicle_id = request.vehicle_id
-            if target_vehicle_id is None:
-                self.get_logger().error("Initialization request missing target vehicle ID.")
-                response.success = False
-                return response
-
-            self.get_logger().debug(f"Received initialization request for Coug {target_vehicle_id}")
-
-            init_msg = {
-                "message" : "INIT",
-                "start" : request.start.data,
-                "rosbag_flag" : request.rosbag_flag.data,
-                "rosbag_prefix" : request.rosbag_prefix,
-                "thruster_arm" : request.thruster_arm.data,
-                "dvl_acoustics" : request.dvl_acoustics.data,
-                }
-
-            self.send_message(json.dumps(init_msg), self.radio_addresses.get(target_vehicle_id, None))
-            response.success = True
-        except Exception as e:
-            self.get_logger().error(f"Error processing init request: {e}")
-            response.success = False
-
-        return response
-
-    # Function to handle emergency kill requests
-    def send_e_kill_callback(self, request, response):
-        try:
-            target_vehicle_id = request.beacon_id
-            if target_vehicle_id is None:
-                self.get_logger().error("Emergency kill request missing target vehicle ID.")
-                response.success = False
-                return response
-
-            self.get_logger().debug(f"Received emergency kill request for Coug {target_vehicle_id}")
-
-            e_kill_msg = "E_KILL"
-
-            self.send_message(e_kill_msg, self.radio_addresses.get(target_vehicle_id, None))
-            response.success = True
-        except Exception as e:
-            self.get_logger().error(f"Error processing emergency kill request: {e}")
-            response.success = False
-
-        return response
 
     # Function to confirm emergency kill command
     def confirm_e_kill(self, data):
