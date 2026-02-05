@@ -15,8 +15,8 @@ from digi.xbee.exception import TransmitException
 
 import json
 import traceback
-import base64
 from pathlib import Path
+import base64
 
 class RFBridge(Node):
     def __init__(self):

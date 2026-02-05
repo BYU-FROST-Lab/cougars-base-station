@@ -121,3 +121,7 @@ coug1: # Change this to match the vehicle name
   #     # command_timer_period: 1.0
   #     # commands: "[10, 0, 0, 0, 0],[10, 0, 0, 0, 100], [5, 0, 0, 0, 0], [10, 0, 0, 0, 50], [20, 35, 0, 0, 50], [5, 0, 0, 0, 50], [20, 0, 35, 35, 50], [20, 0, -35, -35, 50], [5, 0, 0, 0, 50], [20, 35, -35, 35, 50], [5, 0, 0, 0, 0]"
 
+  param_reloader:
+    ros__parameters:
+      param_file_path: "/home/frostlab/config/deploy_tmp/coug1_params.yaml"
+      target_node: ['/coug1/coug_controls', '/coug1/coug_kinematics', '/coug1/cougars_coms', '/coug1/manual_mission']

@@ -66,3 +66,7 @@ coug0:
       state_3_depth: 0.0
       state_3_heading: 0.0
       state_3_speed: 0.0
+    param_reloader:
+      ros__parameters:
+        param_file_path: "/home/frostlab/config/deploy_tmp/coug0_params.yaml"
+        target_node: ['/coug0/coug_controls', '/coug0/coug_kinematics', '/coug0/cougars_coms', '/coug0/manual_mission']

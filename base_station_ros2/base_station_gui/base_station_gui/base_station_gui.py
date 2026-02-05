@@ -861,13 +861,15 @@ class MainWindow(QMainWindow):
             if dlg.exec():
                 start_config = dlg.get_states()
                 selected_files = list(start_config['selected_files'].values())
+                msg = LoadMission.Request()
                 msg.mission_path = String(data=selected_files[i])
+                msg.vehicle_id = vehicle
                 self.ros_node.load_mission_client.call_async(msg)
                 i+=1
 
             else:
                 err_msg = "Mission Loading command was cancelled."
-                for i in self.selected_vehicles: self.recieve_console_update(err_msg, i)
+                for vehicle_id in self.selected_vehicles: self.recieve_console_update(err_msg, vehicle_id)
                 self.replace_confirm_reject_label(err_msg)
 
     def start_missions_button(self):
@@ -931,10 +933,6 @@ class MainWindow(QMainWindow):
         self.replace_confirm_reject_label(msg)
         self.recieve_console_update(msg, vehicle_number)
 
-        msg = f"Loading Vehicle{vehicle_number} mission..."
-        self.replace_confirm_reject_label(msg)
-        self.recieve_console_update(msg, vehicle_number)
-
         dlg = LoadMissionsDialog(parent=self, background_color=self.background_color, text_color=self.text_color, pop_up_window_style=self.pop_up_window_style, selected_vehicles=[vehicle_number])
         if dlg.exec():
             start_config = dlg.get_states()
@@ -950,7 +948,7 @@ class MainWindow(QMainWindow):
 
         else:
             err_msg = "Mission Loading command was cancelled."
-            for i in self.selected_vehicles: self.recieve_console_update(err_msg, i)
+            self.recieve_console_update(err_msg, vehicle_number)
             self.replace_confirm_reject_label(err_msg)
                 
     def spec_start_missions_button(self, vehicle_number):

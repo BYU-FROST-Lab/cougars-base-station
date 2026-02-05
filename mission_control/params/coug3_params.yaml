@@ -116,3 +116,8 @@ coug3: # Change this to match the vehicle name
       ####### IN LAB EXAGERRATED TEST
       # command_timer_period: 1.0
       # commands: "[10, 0, 0, 0, 0],[10, 0, 0, 0, 100], [5, 0, 0, 0, 0], [10, 0, 0, 0, 50], [20, 35, 0, 0, 50], [5, 0, 0, 0, 50], [20, 0, 35, 35, 50], [20, 0, -35, -35, 50], [5, 0, 0, 0, 50], [20, 35, -35, 35, 50], [5, 0, 0, 0, 0]"
+
+  param_reloader:
+    ros__parameters:
+      param_file_path: "/home/frostlab/config/deploy_tmp/coug3_params.yaml"
+      target_node: ['/coug3/coug_controls', '/coug3/coug_kinematics', '/coug3/cougars_coms', '/coug3/manual_mission']
