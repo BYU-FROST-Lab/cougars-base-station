@@ -175,6 +175,9 @@ class RFBridge(Node):
                 self.recieve_ping(data.get("src_id"), sender_address)
             elif message_type == "INIT":
                 self.print_to_gui_publisher.publish(ConsoleLog(message="Start mission command was successful", vehicle_number=data.get("src_id")))
+            elif message_type == "INIT_ACK":
+                self.get_logger().debug(f"Received INIT_ACK from vehicle {data.get('src_id')}: {'success' if data.get('success') else 'failure'}")
+                self.print_to_gui_publisher.publish(ConsoleLog(message=f"Initialization of Coug {data.get('src_id')} was {'successful' if data.get('success') else 'unsuccessful'}", vehicle_number=data.get('src_id', 0)))
             elif message_type == "FILE_ACK":
                 # Handle file transfer acknowledgments
                 self.get_logger().debug(f"Received file transfer ACK from vehicle {data.get('src_id')}: {data.get('status', 'unknown')}")
