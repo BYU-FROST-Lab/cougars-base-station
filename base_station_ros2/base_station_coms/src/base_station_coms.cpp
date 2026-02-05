@@ -15,6 +15,7 @@
 #include "sensor_msgs/msg/battery_state.hpp"
 #include "base_station_interfaces/srv/init.hpp"
 #include "cougars_interfaces/msg/u_command.hpp"
+#include "base_station_interfaces/msg/console_log.hpp"
 
 
 
@@ -135,6 +136,9 @@ public:
         wifi_key_publisher_ = this->create_publisher<base_station_interfaces::msg::UCommandBase>(
             "wifi_keyboard_controls", 10
         );
+
+                // publisher for the confirmation of the emergency kill command
+        print_to_gui_pub = this->create_publisher<base_station_interfaces::msg::ConsoleLog>("console_log", 10);
 
         // RCLCPP_INFO(this->get_logger(), "request status: %d", request_status);
         if (request_status) {
@@ -316,10 +320,15 @@ public:
                 wifi_e_kill_client_->async_send_request(request,
                     [this, beacon_id](rclcpp::Client<base_station_interfaces::srv::BeaconId>::SharedFuture future) {
                         auto response = future.get();
-                        if (response->success)
+                        if (response->success) {
                             RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Kill command sent to Coug %i through wifi", beacon_id);
-                        else
+                            base_station_interfaces::msg::ConsoleLog log_msg;
+                            log_msg.message = "Emergency kill command was sent through wifi for Coug " + std::to_string(beacon_id);
+                            log_msg.vehicle_number = beacon_id;
+                            print_to_gui_pub->publish(log_msg);
+                        } else {
                             RCLCPP_WARN(rclcpp::get_logger("rclcpp"), "Kill command sent to Coug %i through wifi failed", beacon_id);
+                        }
                     });
                 response->success = true;
             
@@ -330,7 +339,10 @@ public:
                 rf_transmit_pub_->publish(e_kill_msg);
                 response->success = true;
                 RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Sending E_KILL to Coug %i through radio", beacon_id);
-
+                base_station_interfaces::msg::ConsoleLog log_msg;
+                log_msg.message = "Emergency kill command was sent through radio for Coug " + std::to_string(beacon_id);
+                log_msg.vehicle_number = beacon_id;
+                print_to_gui_pub->publish(log_msg);
             } else if (modem_connection[beacon_id]) {
                 
                 EmergencyKill e_kill_msg;
@@ -339,12 +351,20 @@ public:
                 msg.data.push_back(e_kill_msg.msg_id);  // Message payload: EMERGENCY_KILL
                 
                 RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Sending E_KILL to Coug %i through modem", beacon_id);
+                base_station_interfaces::msg::ConsoleLog log_msg;
+                log_msg.message = "Emergency kill command was sent through modem for Coug " + std::to_string(beacon_id);
+                log_msg.vehicle_number = beacon_id;
+                print_to_gui_pub->publish(log_msg);
                 modem_transmit_pub_->publish(msg);
                 response->success = true;
 
             } else {
                 // error message, no connection to coug
                 RCLCPP_WARN(rclcpp::get_logger("rclcpp"), "Cannot send e_kill command to Coug %i because there is no connection", beacon_id);
+                base_station_interfaces::msg::ConsoleLog log_msg;
+                log_msg.message = "Failed to send emergency kill command to Coug " + std::to_string(beacon_id) + " because there is no connection";
+                log_msg.vehicle_number = beacon_id;
+                print_to_gui_pub->publish(log_msg);
                 response->success = false;
             }
         } else {
@@ -367,12 +387,20 @@ public:
                 msg.data.push_back(e_surface_msg.msg);  // Message payload: EMERGENCY_SURFACE
                 
                 RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Sending E_SURFACE to Coug %i through modem", beacon_id);
+                base_station_interfaces::msg::ConsoleLog log_msg;
+                log_msg.message = "Emergency surface command was sent through modem for Coug " + std::to_string(beacon_id);
+                log_msg.vehicle_number = beacon_id;
+                print_to_gui_pub->publish(log_msg);
                 modem_transmit_pub_->publish(msg);
                 response->success = true;
 
             } else {
                 // error message, no connection to coug
                 RCLCPP_WARN(rclcpp::get_logger("rclcpp"), "Cannot send surface command to Coug %i because there is no modem connection", beacon_id);
+                base_station_interfaces::msg::ConsoleLog log_msg;
+                log_msg.message = "Failed to send emergency surface command to Coug " + std::to_string(beacon_id) + " because there is no modem connection";
+                log_msg.vehicle_number = beacon_id;
+                print_to_gui_pub->publish(log_msg);
                 response->success = false;
             }
         } else{
@@ -391,15 +419,27 @@ public:
                 wifi_init_client_->async_send_request(request,
                     [this, vehicle_id](rclcpp::Client<base_station_interfaces::srv::Init>::SharedFuture future) {
                         auto response = future.get();
-                        if (response->success)
+                        if (response->success) {
                             RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Init command sent to Coug %i through wifi", vehicle_id);
-                        else
+                            base_station_interfaces::msg::ConsoleLog log_msg;
+                            log_msg.message = "Init command was sent through wifi for Coug " + std::to_string(vehicle_id);
+                            log_msg.vehicle_number = vehicle_id;
+                            print_to_gui_pub->publish(log_msg);
+                        } else {
                             RCLCPP_WARN(rclcpp::get_logger("rclcpp"), "Init command sent to Coug %i through wifi failed", vehicle_id);
+                            base_station_interfaces::msg::ConsoleLog log_msg;
+                            log_msg.message = "Failed to send init command to Coug " + std::to_string(vehicle_id) + " through wifi";
+                            log_msg.vehicle_number = vehicle_id;
+                            print_to_gui_pub->publish(log_msg);
+                        }
                     });
                 response->success = true;
             } else if (radio_connection[vehicle_id]) {
                 RCLCPP_DEBUG(rclcpp::get_logger("rclcpp"), "Received initialization request for Coug %i", vehicle_id);
-                
+                base_station_interfaces::msg::ConsoleLog log_msg;
+                log_msg.message = "Init command was sent through radio for Coug " + std::to_string(vehicle_id);
+                log_msg.vehicle_number = vehicle_id;
+                print_to_gui_pub->publish(log_msg);
                 std::ostringstream json_stream;
                 json_stream << "{"
                            << "\"vehicle_id\":" << vehicle_id << ","
@@ -443,12 +483,20 @@ public:
                 }
                 
                 RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Init command sent to Coug %i through modem", vehicle_id);
+                base_station_interfaces::msg::ConsoleLog log_msg;
+                log_msg.message = "Init command was sent through modem for Coug " + std::to_string(vehicle_id);
+                log_msg.vehicle_number = vehicle_id;
+                print_to_gui_pub->publish(log_msg);
                 modem_transmit_pub_->publish(msg);
                 response->success = true;
 
             } else {
                 // error message, no connection to coug
                 RCLCPP_WARN(rclcpp::get_logger("rclcpp"), "Cannot send init command to Coug %i because there is no connection", vehicle_id);
+                base_station_interfaces::msg::ConsoleLog log_msg;
+                log_msg.message = "Failed to send init command to Coug " + std::to_string(vehicle_id) + " because there is no connection";
+                log_msg.vehicle_number = vehicle_id;
+                print_to_gui_pub->publish(log_msg);
                 response->success = false;
             }
         } else {
@@ -471,24 +519,38 @@ public:
                 wifi_load_mission_client_->async_send_request(request,
                     [this, vehicle_id](rclcpp::Client<base_station_interfaces::srv::LoadMission>::SharedFuture future) {
                         auto response = future.get();
-                        if (response->success)
-                            RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Load mission command sent to Coug %li through wifi", vehicle_id);
-                        else
-                            RCLCPP_WARN(rclcpp::get_logger("rclcpp"), "Load mission command sent to Coug %li through wifi failed", vehicle_id);
+                        if (response->success) {
+                            RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Loading mission to Coug %li through wifi", vehicle_id);
+                            base_station_interfaces::msg::ConsoleLog log_msg;
+                            log_msg.message = "Loading mission through wifi for Coug " + std::to_string(vehicle_id);
+                            log_msg.vehicle_number = vehicle_id;
+                            print_to_gui_pub->publish(log_msg);
+                        } else {
+                            RCLCPP_WARN(rclcpp::get_logger("rclcpp"), "Loading mission to Coug %li through wifi failed", vehicle_id);
+                        }
                     });
                 response->success = true;
             } else if (radio_connection[vehicle_id]) {
                 radio_load_mission_client_->async_send_request(request,
                     [this, vehicle_id](rclcpp::Client<base_station_interfaces::srv::LoadMission>::SharedFuture future) {
                         auto response = future.get();
-                        if (response->success)
-                            RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Load mission command sent to Coug %li through radio", vehicle_id);
-                        else
-                            RCLCPP_WARN(rclcpp::get_logger("rclcpp"), "Load mission command sent to Coug %li through radio failed", vehicle_id);
+                        if (response->success) {
+                            RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Loading mission to Coug %li through radio", vehicle_id);
+                            base_station_interfaces::msg::ConsoleLog log_msg;
+                            log_msg.message = "Loading mission through radio for Coug " + std::to_string(vehicle_id);
+                            log_msg.vehicle_number = vehicle_id;
+                            print_to_gui_pub->publish(log_msg);
+                        } else {
+                            RCLCPP_WARN(rclcpp::get_logger("rclcpp"), "Loading mission to Coug %li through radio failed", vehicle_id);
+                        }
                     });
                 response->success = true;
             } else {
                 RCLCPP_WARN(rclcpp::get_logger("rclcpp"), "Cannot load mission command. No connection to Coug %li", vehicle_id);
+                base_station_interfaces::msg::ConsoleLog log_msg;
+                log_msg.message = "Failed to load mission to Coug " + std::to_string(vehicle_id) + " because there is no connection";
+                log_msg.vehicle_number = vehicle_id;
+                print_to_gui_pub->publish(log_msg);
                 response->success = false;
             }
         } else {
@@ -561,6 +623,7 @@ private:
     std::unordered_map<int,bool> wifi_connection;
 
     rclcpp::Publisher<base_station_interfaces::msg::UCommandBase>::SharedPtr wifi_key_publisher_;
+    rclcpp::Publisher<base_station_interfaces::msg::ConsoleLog>::SharedPtr print_to_gui_pub;
 
 
     std::vector<int64_t> vehicles_in_mission_;

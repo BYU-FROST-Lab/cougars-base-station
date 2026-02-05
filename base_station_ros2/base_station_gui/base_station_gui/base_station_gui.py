@@ -879,7 +879,7 @@ class MainWindow(QMainWindow):
         Updates the confirmation/rejection label and console log with status messages.
         """
         self.replace_confirm_reject_label("Starting all missions...")
-        for i in self.selected_vehicles: self.recieve_console_update("Starting the missions...", i)
+        # for i in self.selected_vehicles: self.recieve_console_update("Starting the missions...", i)
 
         def deploy_in_thread(start_config):
             try:
@@ -896,12 +896,12 @@ class MainWindow(QMainWindow):
                     msg.dvl_acoustics = Bool(data=start_config["start_dvl"])
                     if self.ros_node.init_client.wait_for_service(timeout_sec=1.0):
                         future = self.ros_node.init_client.call_async(msg)
-                        def on_result(fut):
-                            if fut.result() is not None:
-                                self.update_console_signal.emit("Init command initiated successfully.", vehicle)
-                            else:
-                                self.update_console_signal.emit("Failed to send init command.", vehicle)
-                        future.add_done_callback(on_result)
+                        # def on_result(fut):
+                        #     if fut.result() is not None:
+                        #         self.update_console_signal.emit("Init command initiated successfully.", vehicle)
+                        #     else:
+                        #         self.update_console_signal.emit("Failed to send init command.", vehicle)
+                        # future.add_done_callback(on_result)
                     else:
                         self.update_console_signal.emit(f"Init service for vehicle {vehicle} not available.", vehicle)
             except Exception as e:
@@ -958,7 +958,7 @@ class MainWindow(QMainWindow):
         Updates the confirmation/rejection label and console log with status messages.
         """
         self.replace_confirm_reject_label(f"Starting Vehicle {vehicle_number} mission...")
-        self.recieve_console_update(f"Starting Vehicle {vehicle_number} mission...", vehicle_number)
+        # self.recieve_console_update(f"Starting Vehicle {vehicle_number} mission...", vehicle_number)
 
         def deploy_in_thread(start_config):
             try:
@@ -975,12 +975,12 @@ class MainWindow(QMainWindow):
                 msg.dvl_acoustics = Bool(data=start_config["start_dvl"])
                 if self.ros_node.init_client.wait_for_service(timeout_sec=1.0):
                     future = self.ros_node.init_client.call_async(msg)
-                    def on_result(fut):
-                        if fut.result() is not None:
-                            self.update_console_signal.emit("Init command initiated successfully.", vehicle_number)
-                        else:
-                            self.update_console_signal.emit("Failed to send init command.", vehicle_number)
-                    future.add_done_callback(on_result)
+                    # def on_result(fut):
+                    #     if fut.result() is not None:
+                    #         self.update_console_signal.emit("Init command initiated successfully.", vehicle_number)
+                    #     else:
+                    #         self.update_console_signal.emit("Failed to send init command.", vehicle_number)
+                    # future.add_done_callback(on_result)
                 else:
                     self.update_console_signal.emit(f"Init service for vehicle {vehicle_number} not available.", vehicle_number)
             except Exception as e:
@@ -1039,7 +1039,7 @@ class MainWindow(QMainWindow):
         msg = "Starting bag sync for all vehicles..."
         self.replace_confirm_reject_label(msg)
         for i in self.selected_vehicles: 
-            self.recieve_console_update(msg, i)
+            # self.recieve_console_update(msg, i)
             threading.Thread(target=self.run_sync_bags, args=(i,), daemon=True).start()  
 
     def spec_copy_bags(self, vehicle_number):
@@ -1050,7 +1050,7 @@ class MainWindow(QMainWindow):
         """
         msg = f"Starting bag sync for Vehicle {vehicle_number}..."
         self.replace_confirm_reject_label(msg)
-        self.recieve_console_update(msg, vehicle_number)
+        # self.recieve_console_update(msg, vehicle_number)
         # Run the sync operation in a separate thread to avoid blocking the GUI
         threading.Thread(target=self.run_sync_bags, args=(vehicle_number,), daemon=True).start()  
 
@@ -1361,7 +1361,7 @@ class MainWindow(QMainWindow):
         dlg = ConfirmationDialog("Emergency Shutdown?", "Are you sure you want to initiate emergency shutdown?", self, background_color=self.background_color, text_color=self.text_color, pop_up_window_style=self.pop_up_window_style)
         if dlg.exec():
             self.replace_confirm_reject_label("Starting Emergency Shutdown...")
-            self.recieve_console_update(f"Starting Emergency Shutdown for Vehicle {vehicle_number}", vehicle_number)
+            # self.recieve_console_update(f"Starting Emergency Shutdown for Vehicle {vehicle_number}", vehicle_number)
             future = self.ros_node.cli.call_async(message)
             # Add callback to handle response
             future.add_done_callback(partial(self.handle_service_response, action="Emergency Shutdown", vehicle_number=vehicle_number))
@@ -1382,7 +1382,7 @@ class MainWindow(QMainWindow):
         dlg = ConfirmationDialog("Emergency Surface?", "Are you sure you want to initiate emergency surface?", self, background_color=self.background_color, text_color=self.text_color, pop_up_window_style=self.pop_up_window_style)
         if dlg.exec():
             self.replace_confirm_reject_label("Starting Emergency Surface...")
-            self.recieve_console_update(f"Starting Emergency Surface for Vehicle {vehicle_number}", vehicle_number)
+            # self.recieve_console_update(f"Starting Emergency Surface for Vehicle {vehicle_number}", vehicle_number)
             future = self.ros_node.cli2.call_async(message)
             # Add callback to handle response
             future.add_done_callback(partial(self.handle_service_response, action="Emergency Surface", vehicle_number=vehicle_number))
@@ -1430,19 +1430,19 @@ class MainWindow(QMainWindow):
             if response.success:
                 message = f"{action} Service Initiated Successfully"
                 self.replace_confirm_reject_label(message)
-                if not vehicle_number:
-                    for i in self.selected_vehicles:
-                        self.recieve_console_update(message, i)
-                elif vehicle_number in self.selected_vehicles:
-                    self.recieve_console_update(message, vehicle_number)
+                # if not vehicle_number:
+                #     for i in self.selected_vehicles:
+                #         self.recieve_console_update(message, i)
+                # elif vehicle_number in self.selected_vehicles:
+                #     self.recieve_console_update(message, vehicle_number)
             else:
                 message = f"{action} Service Initialization Failed"
                 self.replace_confirm_reject_label(message)
-                if not vehicle_number:
-                    for i in self.selected_vehicles:
-                        self.recieve_console_update(message, i)
-                elif vehicle_number in self.selected_vehicles:
-                    self.recieve_console_update(message, vehicle_number)
+                # if not vehicle_number:
+                #     for i in self.selected_vehicles:
+                #         self.recieve_console_update(message, i)
+                # elif vehicle_number in self.selected_vehicles:
+                #     self.recieve_console_update(message, vehicle_number)
        
         except Exception as e:
             self.replace_confirm_reject_label(f"{action} service call failed: {e}")
