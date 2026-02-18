@@ -3,6 +3,7 @@
 import rclpy
 from rclpy.node import Node
 from gps_msgs.msg import GPSFix
+from sensor_msgs.msg import NavSatFix
 from nav_msgs.msg import Odometry
 import math
 
@@ -48,7 +49,11 @@ class OdomToNavSatFix(Node):
         self.last_msg = None
 
         # Publisher for GPSFix
-        self.publisher = self.create_publisher(GPSFix, frost_vehicle + '/extended_fix', 10)
+        self.extended_fix_pub = self.create_publisher(GPSFix, frost_vehicle + '/extended_fix', 10)
+
+        # Publisher for NavSatFix
+        self.fix_pub = self.create_publisher(NavSatFix, frost_vehicle+'/fix', 10)
+
     
     def odom_callback(self, msg: Odometry):
         '''
@@ -57,6 +62,7 @@ class OdomToNavSatFix(Node):
         
         :param msg: The Odometry message received from the gps_odom topic.
         '''
+
         # Convert local Cartesian coordinates to latitude/longitude
         lat, lon = self.calculate_inverse_haversine(
             self.get_parameter('origin.latitude').get_parameter_value().double_value,
@@ -78,14 +84,20 @@ class OdomToNavSatFix(Node):
         gps_fix.status.satellites_used = 10
 
         # Set the covariance values
-        gps_fix.position_covariance[0] = msg.pose.covariance[0]  # xx
-        gps_fix.position_covariance[4] = msg.pose.covariance[7]  # yy
-        gps_fix.position_covariance[8] = msg.pose.covariance[14]  # zz
-        gps_fix.position_covariance_type = 2  # COVARIANCE_TYPE_DIAGONAL_KNOWN
+        # Covariance from NavSatFix message used
+        navsatfix= NavSatFix()
+        navsatfix.header = msg.header
+        navsatfix.header.frame_id = "gps"
+        navsatfix.position_covariance[0] = msg.pose.covariance[0]  # xx
+        navsatfix.position_covariance[4] = msg.pose.covariance[7]  # yy
+        navsatfix.position_covariance[8] = msg.pose.covariance[14]  # zz
+        navsatfix.position_covariance_type = 2  # COVARIANCE_TYPE_DIAGONAL_KNOWN
 
-        # Publish the GPSFix message
+
+        # Publish the GPSFix  and NavSatFix messages
         self.last_msg = gps_fix
-        self.publisher.publish(gps_fix)
+        self.extended_fix_pub.publish(gps_fix)
+        self.fix_pub.publish(navsatfix)
 
     def calculate_inverse_haversine(self, ref_lat, ref_lon, x, y):
         # Convert reference point to radians
