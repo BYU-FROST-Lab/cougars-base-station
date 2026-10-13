@@ -329,14 +329,15 @@ class GuiNode(Node):
 
     def publish_hardware_control(self, vehicle_number, device, mode):
         """
-        Sends a relay/strobe control command to the vehicle over radio.
+        Sends a relay/strobe control command to the vehicle.
+        base_station_wifi sends it over WiFi when connected; otherwise base_station_radio sends it over radio.
         device: "RELAY" or "STROBE". mode: "AUTO", "ON", or "OFF".
         """
         msg = String()
         msg.data = f"{device}:{mode}"
         getattr(self, f'coug{vehicle_number}_hardware_control_pub').publish(msg)
         self.publish_console_log(
-            f"Sent {device.title()} {mode.title()} command for Coug {vehicle_number} over radio",
+            f"Published {device.title()} {mode.title()} command for Coug {vehicle_number}",
             vehicle_number
         )
 

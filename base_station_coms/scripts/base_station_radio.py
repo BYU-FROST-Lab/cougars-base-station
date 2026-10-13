@@ -230,6 +230,9 @@ class VehicleRadioConnection:
             self.node.get_logger().warn(
                 f"Not sending hardware control for vehicle {self.vehicle_id} over radio because radio is disconnected"
             )
+            self.print_to_gui_publisher.publish(ConsoleLog(
+                message=f"Hardware control {msg.data} not sent: no WiFi or radio connection",
+                vehicle_number=self.vehicle_id))
             return
 
         try:
@@ -251,6 +254,9 @@ class VehicleRadioConnection:
             self.node.get_logger().info(
                 f"Sent {device_str} {mode_str} command to vehicle {self.vehicle_id} over radio"
             )
+            self.print_to_gui_publisher.publish(ConsoleLog(
+                message=f"Sent hardware control {msg.data} over radio",
+                vehicle_number=self.vehicle_id))
         else:
             self.node.get_logger().error(
                 f"Failed to send {device_str} {mode_str} command to vehicle {self.vehicle_id} over radio"
