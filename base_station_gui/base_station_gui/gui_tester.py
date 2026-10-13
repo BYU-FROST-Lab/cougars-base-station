@@ -45,7 +45,7 @@ class GuiTester(Node):
             prefix = f'coug{vehicle}'
             self.test_publishers[vehicle] = {
                 'safety': self.create_publisher(SystemStatus, f'{prefix}/safety_status', 10),
-                'state': self.create_publisher(Odometry, f'{prefix}/state_estimate', 10),
+                'state': self.create_publisher(Odometry, f'{prefix}/odometry/global', 10),
                 'dvl': self.create_publisher(DVL, f'{prefix}/dvl/data', 10),
                 'pressure': self.create_publisher(FluidPressure, f'{prefix}/pressure/data', 10),
                 'battery': self.create_publisher(BatteryState, f'{prefix}/battery/data', 10),

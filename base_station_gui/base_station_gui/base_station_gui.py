@@ -313,6 +313,8 @@ class MainWindow(QMainWindow):
             "DVL": {vehicle_num: 2 for vehicle_num in self.selected_vehicles},
             "GPS": {vehicle_num: 2 for vehicle_num in self.selected_vehicles},
             "IMU": {vehicle_num: 2 for vehicle_num in self.selected_vehicles},
+            # onboard modem node publishing modem_status (from safety_status), not the acoustic link ("Modem")
+            "Seatrac": {vehicle_num: 2 for vehicle_num in self.selected_vehicles},
             "Battery": {vehicle_num: 2 for vehicle_num in self.selected_vehicles},
 
             #Vehicles 1-3 status messages
@@ -1827,6 +1829,10 @@ class MainWindow(QMainWindow):
                 
                 IMU_sensor_widget = self.create_icon_and_text("IMU", self.icons_dict[self.feedback_dict["IMU"][vehicle_number]], self.tab_spacing, vehicle_number, 0)
                 layout.addWidget(IMU_sensor_widget)
+                layout.addSpacing(20)
+
+                seatrac_sensor_widget = self.create_icon_and_text("Seatrac", self.icons_dict[self.feedback_dict["Seatrac"][vehicle_number]], self.tab_spacing, vehicle_number, 0)
+                layout.addWidget(seatrac_sensor_widget)
                 layout.addSpacing(40)
 
             #The status section contains the status message for each Vehicle respectively
@@ -2419,6 +2425,9 @@ class MainWindow(QMainWindow):
         IMU_sensor_widget = self.create_icon_and_text("IMU", self.icons_dict[self.feedback_dict["IMU"][vehicle_number]], 0, vehicle_number, 1)
         temp_layout.addWidget(IMU_sensor_widget)
 
+        seatrac_sensor_widget = self.create_icon_and_text("Seatrac", self.icons_dict[self.feedback_dict["Seatrac"][vehicle_number]], 0, vehicle_number, 1)
+        temp_layout.addWidget(seatrac_sensor_widget)
+
         # Return the container widget holding all status icons
         return temp_container
 
@@ -2533,18 +2542,25 @@ class MainWindow(QMainWindow):
         if safety_message.imu_published.data: imu_data = 1
         else: imu_data = 0
         self.feedback_dict["IMU"][vehicle_number] = imu_data
-        
+
+        # modem_status: 0 = modem node publishing, 1 = not publishing
+        if safety_message.modem_status.data: seatrac_data = 0
+        else: seatrac_data = 1
+        self.feedback_dict["Seatrac"][vehicle_number] = seatrac_data
+
         #replace general page widgets
         self.replace_general_page_icon_widget(vehicle_number, "GPS")
         self.replace_general_page_icon_widget(vehicle_number, "DVL")
         # self.replace_general_page_icon_widget(vehicle_number, "Wifi")
         self.replace_general_page_icon_widget(vehicle_number, "IMU")
+        self.replace_general_page_icon_widget(vehicle_number, "Seatrac")
 
         #replace specific page widgets
         self.replace_specific_icon_widget(vehicle_number, "GPS")
         self.replace_specific_icon_widget(vehicle_number, "DVL")
         # self.replace_specific_icon_widget(vehicle_number, "Wifi")
         self.replace_specific_icon_widget(vehicle_number, "IMU")
+        self.replace_specific_icon_widget(vehicle_number, "Seatrac")
 
         #replace emergency status label
         if self.feedback_dict["Status_messages"][vehicle_number] != safety_message.emergency_status.data:
@@ -2588,12 +2604,15 @@ class MainWindow(QMainWindow):
         x = position.x
         y = position.y
         depth = -position.z
-        heading = math.degrees(
+        # ENU yaw (0 = east, counter-clockwise positive)
+        yaw = math.degrees(
             math.atan2(
                 2.0 * (orientation.w * orientation.z + orientation.x * orientation.y),
                 1.0 - 2.0 * (orientation.y * orientation.y + orientation.z * orientation.z),
             )
         )
+        # compass heading (0 = north, clockwise positive, 0-360)
+        heading = (90.0 - yaw) % 360.0
 
         self.feedback_dict["XPos"][vehicle_number] = round(x, 5)
         self.feedback_dict["YPos"][vehicle_number] = round(y, 5)
@@ -2617,8 +2636,9 @@ class MainWindow(QMainWindow):
         """
         Updates the depth widget for the specified vehicle based on the received message.
         """
-        #update feedback dict 
-        self.feedback_dict["Depth"][vehicle_number] = round(msg.pose.pose.position.z, 2)
+        #update feedback dict
+        # depth/odom z is ENU (negative underwater); show depth as positive down, same as the state estimate
+        self.feedback_dict["Depth"][vehicle_number] = round(-msg.pose.pose.position.z, 2)
         #replace specific page status widget
         self.replace_specific_status_widget(vehicle_number, "Depth")
 

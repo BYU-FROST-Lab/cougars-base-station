@@ -37,8 +37,6 @@ def generate_launch_description():
             name='base_station_radio',
             parameters=[param_file],
             output='screen',
-            remappings=[('odometry/global', 'gps/odom')]
-
         ),
         Node(
             package='base_station_coms',

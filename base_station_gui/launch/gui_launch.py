@@ -25,6 +25,5 @@ def generate_launch_description():
                 'BASE_STATION_PARAM_FILE': LaunchConfiguration('param_file')
             },
             parameters=[LaunchConfiguration('origin')],
-            remappings=[('odometry/global', 'gps/odom')]
         ),
     ])

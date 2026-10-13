@@ -12,7 +12,7 @@ import struct
 
 import rclpy
 from rclpy.node import Node
-from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy
+from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy, qos_profile_sensor_data
 from rclpy.executors import SingleThreadedExecutor
 from rcl_interfaces.srv import SetParameters
 from rcl_interfaces.msg import Parameter as RclParameter, ParameterType
@@ -78,18 +78,19 @@ class GuiNode(Node):
             )
             setattr(self, f'state_estimate_subscription{coug_number}', sub)
 
-            # Subscribe to smoothed output messages for each vehicle
+            # Subscribe to DVL velocity for each vehicle.
+            # The DVL publishes best effort, so a reliable subscription would never connect.
             sub = self.create_subscription(
                 DVL,
                 f'coug{coug_number}/dvl/data',
                 lambda msg, n=coug_number: window.recieve_dvl_velocity(n, msg),
-                10
+                qos_profile_sensor_data
             )
             setattr(self, f'dvl_vel_subscription{coug_number}', sub)
 
-            # Subscribe to depth data messages for each vehicle
+            # Subscribe to depth data messages for each vehicle (pressure_to_depth publishes Odometry)
             sub = self.create_subscription(
-                PoseWithCovarianceStamped,
+                Odometry,
                 f'coug{coug_number}/depth/odom',
                 lambda msg, n=coug_number: window.recieve_depth_data_message(n, msg),
                 10
