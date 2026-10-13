@@ -1476,9 +1476,9 @@ class MainWindow(QMainWindow):
                     self, "Params File Warning", warning_msg
                 ))
 
-            def publish_fins(vehicle_num, fins, pub_type):
+            def publish_fins(vehicle_num, fins):
                 fins_out = [float(f) for f in fins]
-                self.ros_node.publish_fins(fins_out, vehicle_num, pub_type)
+                self.ros_node.publish_fins(fins_out, vehicle_num)
 
             for i in self.selected_vehicles:
                 self.recieve_console_update("Loading Fin Calibration Window...", i)
@@ -1499,12 +1499,11 @@ class MainWindow(QMainWindow):
                 fin_states = dlg.get_states()
                 for key, states in fin_states.items():
                     self.save_param_file(key, states)
+                    self.recieve_console_update("Fin Calibration Saved to Params", int(key))
+                    # results of setting the live kinematics params are reported in the console
                     self.ros_node.set_single_parameter("top_fin_offset", float(states[0]), key)
                     self.ros_node.set_single_parameter("right_fin_offset", float(states[1]), key)
                     self.ros_node.set_single_parameter("left_fin_offset", float(states[2]), key)
-
-                    self.recieve_console_update("Vehicle Kinematics param set", int(key))
-                    self.recieve_console_update("Fin Calibration Saved to Params", int(key))
             else:
                 for i in self.selected_vehicles: self.recieve_console_update("Canceling Fin Calibration", i)
 
@@ -3824,8 +3823,9 @@ class CalibrateFinsDialog(QDialog):
     """
     Custom dialog for fin calibration.
     Allows the user to adjust fin offsets for each vehicle using sliders.
-    Supports publishing changes to ROS and saving to params.
-    Tabs for each vehicle, exclusive checkboxes for pub type, and value display.
+    Slider values are sent as raw fin angles on control/actuator_cmd (no offsets applied), so the
+    angle that makes a fin straight is that fin's offset. Saving writes them to params.
+    Tabs for each vehicle and value display.
 
 
     Parameters:
@@ -3847,8 +3847,9 @@ class CalibrateFinsDialog(QDialog):
     def __init__(self, parent=None, background_color="white", text_color="black", pop_up_window_style=None, selected_vehicles=None, passed_ros_node=None, on_slider_change=None, vehicle_init_params=None):
         super().__init__(parent)
         self.setWindowTitle("Fin Calibration:")
-        self.pub_types = {}
         self.fin_sliders = {}
+        # vehicles whose sliders have been moved; only these get fin commands
+        self.active_vehicles = {}
         self.fin_dict = {
             1: "top_fin_offset",
             2: "right_fin_offset",
@@ -3899,30 +3900,24 @@ class CalibrateFinsDialog(QDialog):
 
                 if self.on_slider_change:
                     fin_slider.valueChanged.connect(
-                        lambda _, vnum=vehicle_num, tab=name: self._handle_slider_change(vnum, tab, self.pub_types[vehicle_num])
+                        lambda _, vnum=vehicle_num, tab=name: self._handle_slider_change(vnum, tab)
                     )
                 row.addWidget(value_label)
                 content_layout.addLayout(row)
                 self.fin_sliders[name].append(fin_slider)
 
-            self.pub_types[vehicle_num] = 1
-            # pub_type = 1
-            cb = QCheckBox(f"coug{vehicle_num}/kinematics/command")
-            cb.setChecked(True)
-            # pub_type = 0
-            cb2 = QCheckBox(f"coug{vehicle_num}/controls/command")
-            cb2.setChecked(False)
-
-            self.make_exclusive(cb, cb2)
-
-            cb.stateChanged.connect(lambda state, vnum=vehicle_num: self.set_pub_type(vnum, 1) if state else None)
-            cb2.stateChanged.connect(lambda state, vnum=vehicle_num: self.set_pub_type(vnum, 0) if state else None)
-
-            content_layout.addWidget(cb)
-            content_layout.addWidget(cb2)
+            topic_label = QLabel(f"Raw angles -> coug{vehicle_num}/control/actuator_cmd")
+            topic_label.setStyleSheet(f"color: {text_color};")
+            content_layout.addWidget(topic_label)
             self.pop_up_tabs.addTab(content_widget, name)
 
-        note_label = QLabel("(Arrows -> 1, Pg Up/Down -> 5)")
+        # Re-send the current fin angles so the fins hold position: the Teensy times out
+        # if it stops receiving commands (coug_kinematics re-sends every 1 s for the same reason)
+        self.resend_timer = QTimer(self)
+        self.resend_timer.timeout.connect(self._resend_active)
+        self.resend_timer.start(500)
+
+        note_label = QLabel("(Arrows -> 1, Pg Up/Down -> 5)\nThruster is held at 0 while calibrating")
         note_label.setStyleSheet(f"font-weight: bold; color: {text_color};")
         layout.addWidget(note_label)
         layout.addWidget(self.pop_up_tabs)
@@ -3935,28 +3930,30 @@ class CalibrateFinsDialog(QDialog):
         layout.addLayout(button_row)
         self.setLayout(layout)
 
-    def make_exclusive(self, box1, box2):
-        """
-        Ensures that only one of the two checkboxes is checked at a time (exclusive selection).
-        """
-        box1.stateChanged.connect(lambda state: box2.setChecked(False) if state else box2.setChecked(True))
-        box2.stateChanged.connect(lambda state: box1.setChecked(False) if state else box1.setChecked(True))
-
-    def set_pub_type(self, vehicle_num, value):
-        """
-        Sets the pub_type value for the given vehicle number.
-        """
-        self.pub_types[vehicle_num] = value
-
-    def _handle_slider_change(self, vehicle_num, tab_name, pub_type):
+    def _handle_slider_change(self, vehicle_num, tab_name):
         """
         Called whenever a slider changes for a vehicle.
         Invokes the on_slider_change callback with current values.
         """
+        self.active_vehicles[vehicle_num] = tab_name
         if self.on_slider_change:
             # Get current values for this vehicle
             values = [slider.value() for slider in self.fin_sliders[tab_name]]
-            self.on_slider_change(vehicle_num, values, pub_type)
+            self.on_slider_change(vehicle_num, values)
+
+    def _resend_active(self):
+        """
+        Re-publishes the current slider values for every vehicle that has been adjusted.
+        """
+        for vehicle_num, tab_name in self.active_vehicles.items():
+            self._handle_slider_change(vehicle_num, tab_name)
+
+    def done(self, result):
+        """
+        Stops re-sending fin commands when the dialog closes (save or cancel).
+        """
+        self.resend_timer.stop()
+        super().done(result)
 
     def validate_and_accept(self): 
         """

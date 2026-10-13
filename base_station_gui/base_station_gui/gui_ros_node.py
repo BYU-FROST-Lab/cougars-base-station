@@ -29,7 +29,7 @@ from unique_identifier_msgs.msg import UUID
 from diagnostic_msgs.msg import DiagnosticStatus
 
 from base_station_interfaces.msg import ConsoleLog, UCommandBase
-from cougars_interfaces.msg import SystemStatus, SystemControl, UCommand, MissionFeedback, WaypointFeedback
+from cougars_interfaces.msg import SystemStatus, SystemControl, ActuatorCommand, MissionFeedback, WaypointFeedback
 from dvl_msgs.msg import DVL
 
 
@@ -182,26 +182,19 @@ class GuiNode(Node):
             )
             setattr(self, f'coug{coug_number}_path_', pub)
 
-            # Publisher for vehicle fins kinematics command for each vehicle
+            # Publisher for raw fin commands (fin calibration). control/actuator_cmd goes straight
+            # to mc_serial_node/Teensy, bypassing coug_kinematics, so no fin offsets are applied.
             pub = self.create_publisher(
-                UCommand,
-                f'/coug{coug_number}/kinematics/command',
+                ActuatorCommand,
+                f'/coug{coug_number}/control/actuator_cmd',
                 10
             )
-            setattr(self, f'coug{coug_number}_fins_kinematics', pub)
-
-            # Publisher for vehicle fins controls command for each vehicle
-            pub = self.create_publisher(
-                UCommand,
-                f'/coug{coug_number}/controls/command',
-                10
-            )
-            setattr(self, f'coug{coug_number}_fins_controls', pub)
+            setattr(self, f'coug{coug_number}_fins_actuator', pub)
 
             # Client for setting kinematics parameters for each vehicle
             client = self.create_client(
                 SetParameters,
-                f'/coug{coug_number}/coug_kinematics'
+                f'/coug{coug_number}/coug_kinematics/set_parameters'
             )
             setattr(self, f'coug{coug_number}_kinematics_client', client)
 
@@ -466,23 +459,29 @@ class GuiNode(Node):
         getattr(self, f'coug{vehicle_number}_path_').publish(msg)
         self.get_logger().info(f'Publishing from GUI: "{msg}"')
 
-    def publish_fins(self, fin_degree, vehicle_number, publish_type):
+    def publish_fins(self, fin_degree, vehicle_number):
         """
-        Publishes fin commands to either kinematics or controls topic for the specified vehicle.
-        fin_degree: list of fin angles, vehicle_number: int, publish_type: int (1 for kinematics, 0 for controls)
+        Publishes raw fin angles (degrees) to control/actuator_cmd for the specified vehicle.
+        This bypasses coug_kinematics, so no fin offsets are added and the thruster is held at 0.
+        fin_degree: [top, right, left] fin angles, vehicle_number: int
         """
-        msg = UCommand()
-        msg.fin = [fin_degree[0], fin_degree[1], fin_degree[2], float(0)]
-        if publish_type: getattr(self, f"coug{vehicle_number}_fins_kinematics").publish(msg)
-        else: getattr(self, f"coug{vehicle_number}_fins_controls").publish(msg)
+        msg = ActuatorCommand()
+        msg.header.stamp = self.get_clock().now().to_msg()
+        msg.fin = [float(fin_degree[0]), float(fin_degree[1]), float(fin_degree[2]), 0.0]
+        msg.thruster = 0
+        getattr(self, f"coug{vehicle_number}_fins_actuator").publish(msg)
 
     def set_single_parameter(self, param_name, param_value, coug_number, callback=None):
         """
-        Sets a single ROS 2 parameter for the specified vehicle using the SetParameters service.
+        Sets a single ROS 2 parameter on the vehicle's coug_kinematics node using the SetParameters service.
         param_name: str, param_value: str/int/float, coug_number: int, callback: function (optional)
+        Returns the future, or None if the service isn't available.
         """
-        # Used by tabbed window in an attempt to ros2 param set the fin angles.
-        # TODO: Doesn't seem to be working currently. 
+        client = getattr(self, f"coug{coug_number}_kinematics_client")
+        if not client.service_is_ready():
+            self.publish_console_log(
+                f"Could not set {param_name}: coug_kinematics parameter service not available", int(coug_number))
+            return None
 
         param = RclParameter()
         param.name = param_name
@@ -499,10 +498,21 @@ class GuiNode(Node):
 
         req = SetParameters.Request()
         req.parameters = [param]
-        client = getattr(self, f"coug{coug_number}_kinematics_client")
         future = client.call_async(req)
-        if callback:
-            future.add_done_callback(lambda fut: callback(fut.result()))
+
+        def report(fut):
+            try:
+                result = fut.result().results[0]
+                if result.successful:
+                    self.publish_console_log(f"Set {param_name} = {param_value} on coug_kinematics", int(coug_number))
+                else:
+                    self.publish_console_log(f"Failed to set {param_name}: {result.reason}", int(coug_number))
+            except Exception as e:
+                self.publish_console_log(f"Failed to set {param_name}: {e}", int(coug_number))
+            if callback:
+                callback(fut.result())
+
+        future.add_done_callback(report)
         return future
 
 def ros_spin_thread(executor):
