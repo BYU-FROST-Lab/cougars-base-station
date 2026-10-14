@@ -55,7 +55,7 @@ class BarGauge(QWidget):
         self._text_color = "#000000"
         self._border_color = "#000000"
         self._bg_color = "#FFFFFF"
-        self.setMinimumSize(90, 200)
+        self.setMinimumSize(90, 130)
         self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Expanding)
 
     def set_theme_colors(self, text_color, border_color, bg_color):
@@ -128,7 +128,7 @@ class TurnWheelGauge(QWidget):
         self._text_color = "#000000"
         self._border_color = "#000000"
         self._bg_color = "#FFFFFF"
-        self.setMinimumSize(160, 180)
+        self.setMinimumSize(150, 130)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
 
     def set_theme_colors(self, text_color, border_color, bg_color):
@@ -234,6 +234,9 @@ class MainWindow(QMainWindow):
         # Button styling parameters
         self.button_padding = 15
         self.button_font_size = 15
+        # Smaller variant used for the densely-packed Keyboard Controls tab
+        self.compact_button_padding = 6
+        self.compact_button_font_size = 12
 
         # Set default color theme for the GUI
         self.set_color_theme("dark_mode", first_time=True) #default to dark mode
@@ -243,6 +246,11 @@ class MainWindow(QMainWindow):
         theme_action_group.setExclusive(True)
 
         # Theme actions for the menu
+        abyss_theme = QAction("Deep Sea", self)
+        abyss_theme.triggered.connect(lambda: self.set_color_theme("abyss"))
+        abyss_theme.setCheckable(True)
+        theme_action_group.addAction(abyss_theme)
+
         dark_mode = QAction("Dark Mode", self)
         dark_mode.triggered.connect(lambda: self.set_color_theme("dark_mode"))
         dark_mode.setCheckable(True)
@@ -285,6 +293,7 @@ class MainWindow(QMainWindow):
         menu = self.menuBar()
         file_menu = menu.addMenu("Theme")
         file_submenu = file_menu.addMenu("Set Theme")
+        file_submenu.addAction(abyss_theme)
         file_submenu.addAction(dark_mode)
         file_submenu.addAction(light_mode)
         file_submenu.addAction(blue_pastel)
@@ -671,8 +680,77 @@ class MainWindow(QMainWindow):
         theme = color_theme.lower()
 
         # Set color variables and stylesheets based on selected theme
+        # Deep Sea - underwater-robotics themed default: abyssal navy with a bioluminescent cyan glow
+        if theme == "abyss":
+            self.background_color = "#061622"
+            self.border_outline = "#2fe6da"
+            self.text_color = "#e7fbff"
+            self.normal_button_color = "qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #145b64, stop:1 #0a333a)"
+            self.normal_button_hover_color = "qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #1c7c88, stop:1 #0f4650)"
+            self.danger_button_color = "qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #a8431f, stop:1 #6e2510)"
+            self.danger_button_hover_color = "qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #d1592c, stop:1 #8f3315)"
+            self.danger_button_style_sheet = (
+                f"QPushButton {{ background-color: {self.danger_button_color}; color: {self.text_color}; "
+                f"border: 2px solid #ffb37a; border-radius: 8px; padding-top: {self.button_padding}px; "
+                f"padding-bottom: {self.button_padding}px; font-size: {self.button_font_size}px; }}"
+                f"QPushButton:hover {{ background-color: {self.danger_button_hover_color}; border: 2px solid #ffcf9e; }}"
+                f"QPushButton:pressed {{ background-color: {self.background_color}; }}"
+            )
+            self.normal_button_style_sheet = (
+                f"QPushButton {{ background-color: {self.normal_button_color}; color: {self.text_color}; "
+                f"border: 2px solid {self.border_outline}; border-radius: 8px; padding-top: {self.button_padding}px; "
+                f"padding-bottom: {self.button_padding}px; font-size: {self.button_font_size}px; }}"
+                f"QPushButton:hover {{ background-color: {self.normal_button_hover_color}; border: 2px solid #9df9f2; }}"
+                f"QPushButton:pressed {{ background-color: {self.background_color}; }}"
+            )
+            self.compact_danger_button_style_sheet = (
+                f"QPushButton {{ background-color: {self.danger_button_color}; color: {self.text_color}; "
+                f"border: 2px solid #ffb37a; border-radius: 6px; padding-top: {self.compact_button_padding}px; "
+                f"padding-bottom: {self.compact_button_padding}px; font-size: {self.compact_button_font_size}px; }}"
+                f"QPushButton:hover {{ background-color: {self.danger_button_hover_color}; border: 2px solid #ffcf9e; }}"
+                f"QPushButton:pressed {{ background-color: {self.background_color}; }}"
+            )
+            self.compact_button_style_sheet = (
+                f"QPushButton {{ background-color: {self.normal_button_color}; color: {self.text_color}; "
+                f"border: 2px solid {self.border_outline}; border-radius: 6px; padding-top: {self.compact_button_padding}px; "
+                f"padding-bottom: {self.compact_button_padding}px; font-size: {self.compact_button_font_size}px; }}"
+                f"QPushButton:hover {{ background-color: {self.normal_button_hover_color}; border: 2px solid #9df9f2; }}"
+                f"QPushButton:pressed {{ background-color: {self.background_color}; }}"
+            )
+            self.selected_tab_color = "qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #3ff2e6, stop:1 #17a9a0)"
+            self.selected_tab_text_color = "#04141c"
+            self.not_selected_tab_color = "qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #0c2836, stop:1 #071620)"
+            self.not_selected_tab_text_color = "#7fd4d0"
+            self.check_box_color = self.text_color
+            self.dark_icon_bkgrnd_color = self.text_color
+            self.light_icon_bkgrnd_color = self.background_color
+            self.pop_up_window_style = (
+                base_pop_up_style.format(bg=self.background_color, text=self.text_color) +
+                extra_checkbox_rules.format(text=self.text_color) +
+                f"""
+                QDialog {{
+                    border: 2px solid {self.border_outline};
+                    border-radius: 10px;
+                }}
+                QLineEdit {{
+                    border: 1px solid {self.border_outline};
+                    border-radius: 4px;
+                }}
+                QPushButton {{
+                    background-color: {self.normal_button_color};
+                    color: {self.text_color};
+                    border: 2px solid {self.border_outline};
+                    border-radius: 6px;
+                    padding: 6px 10px;
+                }}
+                QPushButton:hover {{
+                    background-color: {self.normal_button_hover_color};
+                }}
+                """
+            )
+
         #dark mode
-        if theme == "dark_mode":
+        elif theme == "dark_mode":
             self.background_color = "#0F1C37"
             self.border_outline = "#FFFFFF"
             self.text_color = "#FFFFFF"
@@ -680,6 +758,8 @@ class MainWindow(QMainWindow):
             self.danger_button_color = "#953f10"
             self.danger_button_style_sheet = f"background-color: {self.danger_button_color}; color: {self.text_color}; border: 2px solid {self.border_outline}; padding-top: {self.button_padding}px; padding-bottom: {self.button_padding}px; font-size: {self.button_font_size}px;"
             self.normal_button_style_sheet = f"background-color: {self.normal_button_color}; color: {self.text_color}; border: 2px solid {self.border_outline}; padding-top: {self.button_padding}px; padding-bottom: {self.button_padding}px; font-size: {self.button_font_size}px;"
+            self.compact_danger_button_style_sheet = f"background-color: {self.danger_button_color}; color: {self.text_color}; border: 2px solid {self.border_outline}; padding-top: {self.compact_button_padding}px; padding-bottom: {self.compact_button_padding}px; font-size: {self.compact_button_font_size}px;"
+            self.compact_button_style_sheet = f"background-color: {self.normal_button_color}; color: {self.text_color}; border: 2px solid {self.border_outline}; padding-top: {self.compact_button_padding}px; padding-bottom: {self.compact_button_padding}px; font-size: {self.compact_button_font_size}px;"
             self.selected_tab_color = self.text_color
             self.selected_tab_text_color = self.background_color
             self.not_selected_tab_color = self.background_color
@@ -701,6 +781,8 @@ class MainWindow(QMainWindow):
             self.normal_button_color = "#99d1c5"
             self.danger_button_style_sheet = f"background-color: {self.danger_button_color}; color: {self.text_color}; border: 2px solid {self.border_outline}; padding-top: {self.button_padding}px; padding-bottom: {self.button_padding}px; font-size: {self.button_font_size}px;"
             self.normal_button_style_sheet = f"background-color: {self.normal_button_color}; color: {self.text_color}; border: 2px solid {self.border_outline}; padding-top: {self.button_padding}px; padding-bottom: {self.button_padding}px; font-size: {self.button_font_size}px;"
+            self.compact_danger_button_style_sheet = f"background-color: {self.danger_button_color}; color: {self.text_color}; border: 2px solid {self.border_outline}; padding-top: {self.compact_button_padding}px; padding-bottom: {self.compact_button_padding}px; font-size: {self.compact_button_font_size}px;"
+            self.compact_button_style_sheet = f"background-color: {self.normal_button_color}; color: {self.text_color}; border: 2px solid {self.border_outline}; padding-top: {self.compact_button_padding}px; padding-bottom: {self.compact_button_padding}px; font-size: {self.compact_button_font_size}px;"
             self.selected_tab_color = self.normal_button_color
             self.selected_tab_text_color = self.border_outline
             self.not_selected_tab_color = self.background_color
@@ -718,6 +800,8 @@ class MainWindow(QMainWindow):
             self.normal_button_color = "#81b673"
             self.danger_button_style_sheet = f"background-color: {self.danger_button_color}; color: {self.text_color}; border: 2px solid {self.border_outline}; padding-top: {self.button_padding}px; padding-bottom: {self.button_padding}px; font-size: {self.button_font_size}px;"
             self.normal_button_style_sheet = f"background-color: {self.normal_button_color}; color: {self.text_color}; border: 2px solid {self.border_outline}; padding-top: {self.button_padding}px; padding-bottom: {self.button_padding}px; font-size: {self.button_font_size}px;"
+            self.compact_danger_button_style_sheet = f"background-color: {self.danger_button_color}; color: {self.text_color}; border: 2px solid {self.border_outline}; padding-top: {self.compact_button_padding}px; padding-bottom: {self.compact_button_padding}px; font-size: {self.compact_button_font_size}px;"
+            self.compact_button_style_sheet = f"background-color: {self.normal_button_color}; color: {self.text_color}; border: 2px solid {self.border_outline}; padding-top: {self.compact_button_padding}px; padding-bottom: {self.compact_button_padding}px; font-size: {self.compact_button_font_size}px;"
             self.selected_tab_color = self.normal_button_color
             self.selected_tab_text_color = self.border_outline
             self.not_selected_tab_color = self.background_color
@@ -735,6 +819,8 @@ class MainWindow(QMainWindow):
             self.normal_button_color = "#44312b"
             self.danger_button_style_sheet = f"background-color: {self.danger_button_color}; color: {self.background_color}; border: 2px solid {self.border_outline}; padding-top: {self.button_padding}px; padding-bottom: {self.button_padding}px; font-size: {self.button_font_size}px;"
             self.normal_button_style_sheet = f"background-color: {self.normal_button_color}; color: {self.background_color}; border: 2px solid {self.border_outline}; padding-top: {self.button_padding}px; padding-bottom: {self.button_padding}px; font-size: {self.button_font_size}px;"
+            self.compact_danger_button_style_sheet = f"background-color: {self.danger_button_color}; color: {self.background_color}; border: 2px solid {self.border_outline}; padding-top: {self.compact_button_padding}px; padding-bottom: {self.compact_button_padding}px; font-size: {self.compact_button_font_size}px;"
+            self.compact_button_style_sheet = f"background-color: {self.normal_button_color}; color: {self.background_color}; border: 2px solid {self.border_outline}; padding-top: {self.compact_button_padding}px; padding-bottom: {self.compact_button_padding}px; font-size: {self.compact_button_font_size}px;"
             self.selected_tab_color = self.normal_button_color
             self.selected_tab_text_color = self.background_color
             self.not_selected_tab_color = self.background_color
@@ -753,6 +839,8 @@ class MainWindow(QMainWindow):
             self.normal_button_color = "blue"
             self.danger_button_style_sheet = f"background-color: {self.danger_button_color}; color: #FFFFFF; border: 2px solid {self.border_outline}; padding-top: {self.button_padding}px; padding-bottom: {self.button_padding}px; font-size: {self.button_font_size}px;"
             self.normal_button_style_sheet = f"background-color: {self.normal_button_color}; color: #FFFFFF; border: 2px solid {self.border_outline}; padding-top: {self.button_padding}px; padding-bottom: {self.button_padding}px; font-size: {self.button_font_size}px;"
+            self.compact_danger_button_style_sheet = f"background-color: {self.danger_button_color}; color: #FFFFFF; border: 2px solid {self.border_outline}; padding-top: {self.compact_button_padding}px; padding-bottom: {self.compact_button_padding}px; font-size: {self.compact_button_font_size}px;"
+            self.compact_button_style_sheet = f"background-color: {self.normal_button_color}; color: #FFFFFF; border: 2px solid {self.border_outline}; padding-top: {self.compact_button_padding}px; padding-bottom: {self.compact_button_padding}px; font-size: {self.compact_button_font_size}px;"
             self.selected_tab_color = "blue"
             self.selected_tab_text_color = "white"
             self.not_selected_tab_color = "grey"
@@ -770,6 +858,8 @@ class MainWindow(QMainWindow):
             self.normal_button_color = "white"
             self.danger_button_style_sheet = f"background-color: {self.danger_button_color}; color: {self.background_color}; border: 2px solid {self.border_outline}; padding-top: {self.button_padding}px; padding-bottom: {self.button_padding}px; font-size: {self.button_font_size}px;"
             self.normal_button_style_sheet = f"background-color: {self.normal_button_color}; color: {self.background_color}; border: 2px solid {self.border_outline}; padding-top: {self.button_padding}px; padding-bottom: {self.button_padding}px; font-size: {self.button_font_size}px;"
+            self.compact_danger_button_style_sheet = f"background-color: {self.danger_button_color}; color: {self.background_color}; border: 2px solid {self.border_outline}; padding-top: {self.compact_button_padding}px; padding-bottom: {self.compact_button_padding}px; font-size: {self.compact_button_font_size}px;"
+            self.compact_button_style_sheet = f"background-color: {self.normal_button_color}; color: {self.background_color}; border: 2px solid {self.border_outline}; padding-top: {self.compact_button_padding}px; padding-bottom: {self.compact_button_padding}px; font-size: {self.compact_button_font_size}px;"
             self.selected_tab_color = "white"
             self.selected_tab_text_color = "black"
             self.not_selected_tab_color = "black"
@@ -790,6 +880,8 @@ class MainWindow(QMainWindow):
             self.normal_button_color = "black"
             self.danger_button_style_sheet = f"background-color: {self.danger_button_color}; color: {self.background_color}; border: 2px solid {self.border_outline}; padding-top: {self.button_padding}px; padding-bottom: {self.button_padding}px; font-size: {self.button_font_size}px;"
             self.normal_button_style_sheet = f"background-color: {self.normal_button_color}; color: {self.background_color}; border: 2px solid {self.border_outline}; padding-top: {self.button_padding}px; padding-bottom: {self.button_padding}px; font-size: {self.button_font_size}px;"
+            self.compact_danger_button_style_sheet = f"background-color: {self.danger_button_color}; color: {self.background_color}; border: 2px solid {self.border_outline}; padding-top: {self.compact_button_padding}px; padding-bottom: {self.compact_button_padding}px; font-size: {self.compact_button_font_size}px;"
+            self.compact_button_style_sheet = f"background-color: {self.normal_button_color}; color: {self.background_color}; border: 2px solid {self.border_outline}; padding-top: {self.compact_button_padding}px; padding-bottom: {self.compact_button_padding}px; font-size: {self.compact_button_font_size}px;"
             self.selected_tab_color = "black"
             self.selected_tab_text_color = "white"
             self.not_selected_tab_color = "white"
@@ -857,6 +949,26 @@ class MainWindow(QMainWindow):
                         continue
                     new_pixmap = self.paintIconBackground(orig_pixmap, bg_color=icon_bkgrnd)
                     ic_label.setPixmap(new_pixmap)
+
+        # The generic per-QLabel pass above (loop over self.findChildren(QLabel)) sets every
+        # label to a plain "color: {text_color};", which clobbers the accent styling on the
+        # status-card section headers (border-bottom underline) and group sub-headings (accent
+        # text color) set at construction time. Reassert those here so they track theme
+        # switches instead of freezing at whatever theme was active when the GUI was built.
+        for header in self.findChildren(QLabel, "sectionHeaderLabel"):
+            header.setStyleSheet(
+                f"color: {self.text_color}; border-bottom: 2px solid {self.border_outline}; padding-bottom: 6px;"
+            )
+        for group_label in self.findChildren(QLabel, "groupLabel"):
+            group_label.setStyleSheet(f"color: {self.border_outline};")
+
+        # The Connections/Sensors/Status "card" border is scoped with an ID selector
+        # (#statusCard) that none of the generic passes above touch (it's a QFrame, but its
+        # frameShape isn't HLine/VLine); reassert it here so it follows theme switches too.
+        for card in self.findChildren(QFrame, "statusCard"):
+            card.setStyleSheet(
+                f"QFrame#statusCard {{ border: 2px solid {self.border_outline}; border-radius: 10px; }}"
+            )
 
         # The generic button-recoloring pass above only recognizes "danger" buttons by keywords
         # in their text, which doesn't match the Keyboard Controls tab's toggle buttons. Reassert
@@ -1334,6 +1446,13 @@ class MainWindow(QMainWindow):
             subprocess.run(["ssh-keygen", "-t", "rsa", "-b", "4096", "-f", key_path, "-N", ""], check=True)
             return os.path.exists(key_path) and os.path.exists(pub_key_path)
 
+    def local_vehicle_params_path(self, vehicle_num):
+        """
+        Path to this vehicle's vehicle_params.yaml in the base station's local
+        cougars-config checkout (config/cougars-config/coug{N}/vehicle_params.yaml).
+        """
+        return os.path.expanduser(f"~/config/cougars-config/coug{vehicle_num}/vehicle_params.yaml")
+
     def load_vehicle_kinematics_params(self, vehicle_num):
         """
         Loads the vehicle kinematics parameters from the vehicle using paramiko or falls back to local params file.
@@ -1352,9 +1471,7 @@ class MainWindow(QMainWindow):
         if vehicle_info:
             remote_user = vehicle_info["remote_user"]
             remote_host = vehicle_info["remote_host"]
-            remote_param_path = os.path.join(
-                vehicle_info["remote_path"], vehicle_info["param_file"]
-            )
+            remote_param_path = f"{config['config_path']}/coug{vehicle_num}/vehicle_params.yaml"
             try:
                 # Connect via SSH and SFTP
                 ssh = self.get_ssh_connection(remote_host, remote_user)
@@ -1372,8 +1489,8 @@ class MainWindow(QMainWindow):
             except Exception as e:
                 self.replace_confirm_reject_label(f"SSH error: {e}")
 
-        # If can't get params from vehicle, fallback to local
-        params_path = f"/home/frostlab/base_station/mission_control/params/coug{vehicle_num}_params.yaml"
+        # If can't get params from vehicle, fallback to local cougars-config copy
+        params_path = self.local_vehicle_params_path(vehicle_num)
         if os.path.exists(params_path):
             with open(params_path, 'r') as f:
                 data = yaml.safe_load(f)
@@ -1385,27 +1502,26 @@ class MainWindow(QMainWindow):
 
         return vehicle_kinematics, base_kinematics
 
-    def create_new_param_file(self, vehicle_num): 
+    def create_new_param_file(self, vehicle_num):
         """
-        Creates a new parameter YAML file for the given vehicle number by copying the template
-        from config/vehicle_params.yaml and replacing 'coug0' with 'coug{vehicle_num}'.
-        The new file is saved to mission_control/params/coug{vehicle_num}_params.yaml.
+        Creates a new vehicle_params.yaml for the given vehicle number by copying the
+        example template (config/config_example/coug1/vehicle_params.yaml) and replacing
+        'coug1' with 'coug{vehicle_num}'. The new file is saved into the local
+        cougars-config checkout at config/cougars-config/coug{vehicle_num}/vehicle_params.yaml.
 
         Parameters:
             vehicle_num (int): Vehicle number to create the param file for.
         """
 
-        template_path = os.path.expanduser("~/base_station/mission_control/params/vehicle_params.yaml")
-        params_dir = os.path.expanduser("~/base_station/mission_control/params")
+        template_path = os.path.expanduser("~/cougars-frost/config/config_example/coug1/vehicle_params.yaml")
+        new_param_path = self.local_vehicle_params_path(vehicle_num)
 
-        os.makedirs(params_dir, exist_ok=True)
-        new_param_path = os.path.join(params_dir, f"coug{vehicle_num}_params.yaml")
+        os.makedirs(os.path.dirname(new_param_path), exist_ok=True)
 
-        # Read template and replace 'coug0' with 'coug{vehicle_num}'
+        # Read template and replace 'coug1' with 'coug{vehicle_num}'
         with open(template_path, "r") as f:
             content = f.read()
-        # Replace coug0: with cougX:
-        content = content.replace("coug0:", f"coug{vehicle_num}:")
+        content = content.replace("coug1:", f"coug{vehicle_num}:")
         content = content.replace("vehicle_ID: 1", f"vehicle_ID: {vehicle_num}")
 
         with open(new_param_path, "w") as f:
@@ -1414,18 +1530,17 @@ class MainWindow(QMainWindow):
         msg = f"Created new param file for Vehicle {vehicle_num} at {new_param_path}"
         self.recieve_console_update(msg, vehicle_num)
 
-    def save_param_file(self, vehicle_num, fin_list): 
+    def save_param_file(self, vehicle_num, fin_list):
         """
-        Saves updated fin calibration parameters to the local YAML file for the given vehicle.
-        Replaces the top, right, and left fin offsets in the file using regex.
+        Saves updated fin calibration parameters to the local cougars-config YAML file
+        for the given vehicle. Replaces the top, right, and left fin offsets in the
+        file using regex.
         Parameters:
             vehicle_num (int): Vehicle number.
             fin_list (list): List of fin offsets [top, right, left].
         """
         # Build the path to the params file for this vehicle
-        params_path = os.path.expanduser(
-            f"~/base_station/mission_control/params/coug{vehicle_num}_params.yaml"
-        )
+        params_path = self.local_vehicle_params_path(vehicle_num)
 
         # Read the current file contents
         with open(params_path, "r") as f:
@@ -1740,7 +1855,7 @@ class MainWindow(QMainWindow):
         self.copy_bags_button.setStyleSheet(self.normal_button_style_sheet)
 
         #Calibrate All Vehicles 
-        self.sync_all_vehicles_button = QPushButton("Calibrate All Vehicles (BUGGY)")
+        self.sync_all_vehicles_button = QPushButton("Calibrate All Vehicles")
         self.sync_all_vehicles_button.clicked.connect(lambda: self.run_calibrate_script(0))
         self.sync_all_vehicles_button.setStyleSheet(self.normal_button_style_sheet)
 
@@ -1879,7 +1994,7 @@ class MainWindow(QMainWindow):
         setattr(self, f"vehicle{vehicle_number}_console_widget", temp_container)
 
         # First text label (bold title)
-        title_text = "Console information/message log"
+        title_text = "Console Log"
         title_label = QLabel(title_text)
         title_label.setWordWrap(True)
         title_label.setFont(QFont("Arial", 15, QFont.Weight.Bold))
@@ -1958,17 +2073,30 @@ class MainWindow(QMainWindow):
         live speed/turn/pitch gauges, and on-screen controls mirroring every key binding.
         Both the on-screen buttons and physical typing go through the same
         ros_node.publish_keypress() call, so they're equivalent to the teleop node.
+
+        Kept compact (small button padding, tight spacing, a 2x2 grid for the toggle
+        buttons instead of a stack) so the whole tab fits on screen without scrolling on
+        typical laptop displays; still wrapped in a QScrollArea as a safety net for smaller ones.
         """
+        # Buttons that use the compact style sheet instead of the app-wide normal one; tracked
+        # so _refresh_teleop_toggle_labels can re-assert that sizing after a theme switch (the
+        # generic per-theme recoloring pass in apply_theme_to_widgets would otherwise restyle
+        # every QPushButton, including these, back to full size).
+        self.teleop_compact_buttons = []
+
         container = QWidget()
         layout = QVBoxLayout(container)
+        layout.setSpacing(6)
+        layout.setContentsMargins(10, 8, 10, 8)
 
         self.teleop_vehicle_label = QLabel("Currently controlling: waiting for status...")
-        self.teleop_vehicle_label.setFont(QFont("Arial", 15, QFont.Weight.Bold))
+        self.teleop_vehicle_label.setFont(QFont("Arial", 14, QFont.Weight.Bold))
         self.teleop_vehicle_label.setStyleSheet(f"color: {self.text_color};")
         self.teleop_vehicle_label.setAlignment(Qt.AlignmentFlag.AlignHCenter)
         layout.addWidget(self.teleop_vehicle_label)
 
         instructions_label = QLabel(self.KEYBOARD_CONTROLS_INSTRUCTIONS)
+        instructions_label.setFont(QFont("Courier New", 9))
         instructions_label.setStyleSheet(f"color: {self.text_color};")
         layout.addWidget(instructions_label)
 
@@ -1976,26 +2104,37 @@ class MainWindow(QMainWindow):
 
         self.teleop_enable_button = QPushButton()
         self.teleop_enable_button.clicked.connect(lambda: self._send_teleop_key('z'))
-        layout.addWidget(self.teleop_enable_button)
 
         self.teleop_arm_button = QPushButton()
         self.teleop_arm_button.clicked.connect(lambda: self._send_teleop_key('q'))
-        layout.addWidget(self.teleop_arm_button)
 
         self.teleop_hard_turn_button = QPushButton()
         self.teleop_hard_turn_button.clicked.connect(lambda: self._send_teleop_key('t'))
-        layout.addWidget(self.teleop_hard_turn_button)
 
         switch_vehicle_button = QPushButton("Switch Vehicle (E)")
-        switch_vehicle_button.setStyleSheet(self.normal_button_style_sheet)
+        switch_vehicle_button.setStyleSheet(self.compact_button_style_sheet)
         switch_vehicle_button.clicked.connect(lambda: self._send_teleop_key('e'))
-        layout.addWidget(switch_vehicle_button)
+        self.teleop_compact_buttons.append(switch_vehicle_button)
+
+        # 2x2 grid instead of 4 stacked full-width buttons - halves the vertical space they use
+        toggle_grid = QGridLayout()
+        toggle_grid.setSpacing(6)
+        toggle_grid.addWidget(self.teleop_enable_button, 0, 0)
+        toggle_grid.addWidget(self.teleop_arm_button, 0, 1)
+        toggle_grid.addWidget(self.teleop_hard_turn_button, 1, 0)
+        toggle_grid.addWidget(switch_vehicle_button, 1, 1)
+        layout.addLayout(toggle_grid)
 
         layout.addWidget(self._build_teleop_fin_pad())
         layout.addWidget(self._build_teleop_thruster_row())
 
         self._refresh_teleop_toggle_labels()
-        return container
+
+        self.teleop_scroll_area = QScrollArea()
+        self.teleop_scroll_area.setWidget(container)
+        self.teleop_scroll_area.setWidgetResizable(True)
+        self.teleop_scroll_area.setStyleSheet(f"border: none; background: {self.background_color};")
+        return self.teleop_scroll_area
 
     def _build_teleop_live_gauges(self):
         """
@@ -2019,6 +2158,7 @@ class MainWindow(QMainWindow):
     def _build_teleop_fin_pad(self):
         pad_widget = QWidget()
         grid = QGridLayout(pad_widget)
+        grid.setSpacing(4)
         grid.addWidget(self._make_teleop_key_button("Fins Up (W)", 'w'), 0, 1)
         grid.addWidget(self._make_teleop_key_button("Turn Left (A)", 'a'), 1, 0)
         grid.addWidget(self._make_teleop_key_button("Turn Right (D)", 'd'), 1, 2)
@@ -2028,14 +2168,16 @@ class MainWindow(QMainWindow):
     def _build_teleop_thruster_row(self):
         row_widget = QWidget()
         row = QHBoxLayout(row_widget)
+        row.setSpacing(4)
         row.addWidget(self._make_teleop_key_button("Thruster - (R)", 'r'))
         row.addWidget(self._make_teleop_key_button("Thruster + (Space)", ' '))
         return row_widget
 
     def _make_teleop_key_button(self, text, key):
         button = QPushButton(text)
-        button.setStyleSheet(self.normal_button_style_sheet)
+        button.setStyleSheet(self.compact_button_style_sheet)
         button.clicked.connect(lambda: self._send_teleop_key(key))
+        self.teleop_compact_buttons.append(button)
         return button
 
     def _send_teleop_key(self, key):
@@ -2047,13 +2189,23 @@ class MainWindow(QMainWindow):
         hard_turn = getattr(self, "teleop_hard_turn_mode", False)
 
         self.teleop_enable_button.setText("Disable Keyboard Controls (Z)" if enabled else "Enable Keyboard Controls (Z)")
-        self.teleop_enable_button.setStyleSheet(self.danger_button_style_sheet if enabled else self.normal_button_style_sheet)
+        self.teleop_enable_button.setStyleSheet(self.compact_danger_button_style_sheet if enabled else self.compact_button_style_sheet)
 
         self.teleop_arm_button.setText("Disarm Thruster (Q)" if armed else "Arm Thruster (Q)")
-        self.teleop_arm_button.setStyleSheet(self.danger_button_style_sheet if armed else self.normal_button_style_sheet)
+        self.teleop_arm_button.setStyleSheet(self.compact_danger_button_style_sheet if armed else self.compact_button_style_sheet)
 
         self.teleop_hard_turn_button.setText("Disable Hard Turn Mode (T)" if hard_turn else "Enable Hard Turn Mode (T)")
-        self.teleop_hard_turn_button.setStyleSheet(self.danger_button_style_sheet if hard_turn else self.normal_button_style_sheet)
+        self.teleop_hard_turn_button.setStyleSheet(self.compact_danger_button_style_sheet if hard_turn else self.compact_button_style_sheet)
+
+        # The generic per-theme recoloring pass (apply_theme_to_widgets) restyles every
+        # QPushButton at full size; re-assert compact sizing on the rest of this tab's buttons.
+        for button in getattr(self, "teleop_compact_buttons", []):
+            button.setStyleSheet(self.compact_button_style_sheet)
+
+        # The scroll area's own background is set once at construction and isn't touched by
+        # the generic per-tab recoloring pass, so it goes stale on a theme switch; refresh it.
+        if hasattr(self, "teleop_scroll_area"):
+            self.teleop_scroll_area.setStyleSheet(f"border: none; background: {self.background_color};")
 
     def recieve_teleop_vehicle(self, vehicle_id):
         self.teleop_vehicle_signal.emit(vehicle_id)
@@ -2230,6 +2382,83 @@ class MainWindow(QMainWindow):
         temp_label.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
         return temp_label
 
+    #used to create the section header labels inside status cards (e.g. "Connections", "Sensors", "Status")
+    def create_section_header_label(self, text):
+        """
+        Creates a bold section header label with an accent underline, used to visually
+        separate groups of related status information within a status card.
+        """
+        temp_label = QLabel(text)
+        temp_label.setObjectName("sectionHeaderLabel")
+        temp_label.setFont(QFont("Arial", 14, QFont.Weight.Bold))
+        temp_label.setStyleSheet(
+            f"color: {self.text_color}; border-bottom: 2px solid {self.border_outline}; padding-bottom: 6px;"
+        )
+        temp_label.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
+        return temp_label
+
+    #used to create the small muted sub-group headings inside a status card (e.g. "Mission", "Position")
+    def create_group_label(self, text):
+        """
+        Creates a small, accent-colored uppercase sub-heading used to label one group of
+        related fields (e.g. "Mission", "Position", "Telemetry") within a status card.
+        """
+        temp_label = QLabel(text.upper())
+        temp_label.setObjectName("groupLabel")
+        temp_label.setFont(QFont("Arial", 10, QFont.Weight.Bold))
+        temp_label.setStyleSheet(f"color: {self.border_outline};")
+        temp_label.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
+        return temp_label
+
+    #used to lay out a group of status labels as a compact two-column grid
+    def create_status_grid(self, rows):
+        """
+        Builds a two-column QGridLayout of status labels from `rows`, where each row is
+        a list of one or two (text, name) pairs passed straight through to
+        create_normal_label. A row with a single pair spans both columns.
+        Returns the QGridLayout.
+        """
+        grid = QGridLayout()
+        grid.setHorizontalSpacing(16)
+        grid.setVerticalSpacing(10)
+        grid.setColumnStretch(0, 1)
+        grid.setColumnStretch(1, 1)
+        for row_idx, pair in enumerate(rows):
+            if len(pair) == 2:
+                (text_a, name_a), (text_b, name_b) = pair
+                grid.addWidget(self.create_normal_label(text_a, name_a), row_idx, 0, alignment=Qt.AlignmentFlag.AlignVCenter)
+                grid.addWidget(self.create_normal_label(text_b, name_b), row_idx, 1, alignment=Qt.AlignmentFlag.AlignVCenter)
+            else:
+                (text_a, name_a), = pair
+                grid.addWidget(self.create_normal_label(text_a, name_a), row_idx, 0, 1, 2, alignment=Qt.AlignmentFlag.AlignVCenter)
+        return grid
+
+    #used to wrap a status section (Connections/Sensors/Status) in a rounded card for visual grouping
+    def create_status_card(self, inner_layout):
+        """
+        Wraps the given layout in a bordered, rounded QFrame "card" so related status
+        information (connections, sensors, mission status, etc.) reads as one visual group.
+        Returns the QFrame; `inner_layout` is set as its layout, so widgets can keep being
+        added to `inner_layout` exactly as before.
+
+        Note: the border is scoped with an ID selector (#statusCard) rather than a bare
+        declaration or a "QFrame { ... }" type selector. Both of those leak: a bare
+        declaration set via setStyleSheet() behaves like a "*" (universal) selector and
+        paints every descendant that doesn't set its own border, and a "QFrame" type
+        selector matches QLabel too since QLabel is itself a QFrame subclass in Qt. Either
+        way every plain status label inside picked up its own little rounded box. An ID
+        selector only ever matches the one widget carrying that objectName, so it can't
+        cascade onto children no matter what they are.
+        """
+        card = QFrame()
+        card.setObjectName("statusCard")
+        card.setStyleSheet(
+            f"QFrame#statusCard {{ border: 2px solid {self.border_outline}; border-radius: 10px; }}"
+        )
+        inner_layout.setContentsMargins(14, 12, 14, 14)
+        card.setLayout(inner_layout)
+        return card
+
     #used to create the buttons column on the specific vehicle pages
     def create_vehicle_buttons_column(self, vehicle_number):
         """
@@ -2364,60 +2593,50 @@ class MainWindow(QMainWindow):
     def create_specific_vehicle_column0(self, vehicle_number):
         """
         Creates the first column for a specific Vehicle tab, displaying connection and sensor status icons.
-        Arranges icons vertically for Wifi, Radio, Modem, DVL, GPS, and IMU.
+        Arranges icons vertically for Wifi, Radio, Modem, DVL, GPS, and IMU inside a bordered status card,
+        with the Connections and Sensors groups visually separated for easier scanning.
         Returns the container widget for the column.
         """
-        # Create a vertical layout for the column and store it as an attribute
+        # Create a vertical layout to hold the card's contents and store it as an attribute
         temp_layout = QVBoxLayout()
         setattr(self, f"vehicle{vehicle_number}_column0_layout", temp_layout)
-        temp_layout.setContentsMargins(0, 0, 0, 0)
-        temp_layout.setSpacing(0) 
+        temp_layout.setSpacing(0)
+
+        # Wrap the section in a rounded card so it reads as one visual group
+        card = self.create_status_card(temp_layout)
 
         # Create the container widget for this column and store it as an attribute
         temp_container = QWidget()
         setattr(self, f"vehicle{vehicle_number}_column0_widget", temp_container)
         container_layout = QVBoxLayout(temp_container)
-        container_layout.addLayout(temp_layout)
+        container_layout.setContentsMargins(0, 0, 10, 0)
 
-        # Add the Vehicle title label at the top
-        temp_layout.addWidget(self.create_title_label(f"Vehicle {vehicle_number}"), alignment=Qt.AlignmentFlag.AlignTop)
-        
+        # Add the Vehicle title label above the card
+        container_layout.addWidget(self.create_title_label(f"Vehicle {vehicle_number}"), alignment=Qt.AlignmentFlag.AlignTop)
+        container_layout.addSpacing(10)
+        container_layout.addWidget(card)
+
         # Section: Connections
-        temp_label = QLabel("Connections")
-        temp_label.setFont(QFont("Arial", 15, QFont.Weight.Bold))
-        temp_label.setStyleSheet(f"color: {self.text_color};")
-        temp_label.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
-        temp_layout.addSpacing(20)
-        temp_layout.addWidget(temp_label)
+        temp_layout.addWidget(self.create_section_header_label("Connections"))
+        temp_layout.addSpacing(12)
 
         # Add connection status icons (Wifi, Radio, Modem)
-        wifi_widget = self.create_icon_and_text("Wifi", self.icons_dict[self.feedback_dict["Wifi"][vehicle_number]], 0, vehicle_number, 1)
-        temp_layout.addWidget(wifi_widget)
+        for label_text in ("Wifi", "Radio", "Modem"):
+            temp_layout.addWidget(self.create_icon_and_text(label_text, self.icons_dict[self.feedback_dict[label_text][vehicle_number]], 0, vehicle_number, 1))
+            temp_layout.addSpacing(10)
 
-        radio_widget = self.create_icon_and_text("Radio", self.icons_dict[self.feedback_dict["Radio"][vehicle_number]], 0, vehicle_number, 1)
-        temp_layout.addWidget(radio_widget)
-
-        modem_widget = self.create_icon_and_text("Modem", self.icons_dict[self.feedback_dict["Modem"][vehicle_number]], 0, vehicle_number, 1)
-        temp_layout.addWidget(modem_widget)
-        temp_layout.addSpacing(20)
+        temp_layout.addSpacing(4)
+        temp_layout.addWidget(self.make_hline())
+        temp_layout.addSpacing(16)
 
         # Section: Sensors
-        temp_label = QLabel("Sensors")
-        temp_label.setFont(QFont("Arial", 15, QFont.Weight.Bold))
-        temp_label.setStyleSheet(f"color: {self.text_color};")
-        temp_label.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
-        temp_layout.addSpacing(20)
-        temp_layout.addWidget(temp_label)
+        temp_layout.addWidget(self.create_section_header_label("Sensors"))
+        temp_layout.addSpacing(12)
 
         # Add sensor status icons (DVL, GPS, IMU)
-        DVL_sensor_widget = self.create_icon_and_text("DVL", self.icons_dict[self.feedback_dict["DVL"][vehicle_number]], 0, vehicle_number, 1)
-        temp_layout.addWidget(DVL_sensor_widget)
-
-        GPS_sensor_widget = self.create_icon_and_text("GPS", self.icons_dict[self.feedback_dict["GPS"][vehicle_number]], 0, vehicle_number, 1)
-        temp_layout.addWidget(GPS_sensor_widget)
-        
-        IMU_sensor_widget = self.create_icon_and_text("IMU", self.icons_dict[self.feedback_dict["IMU"][vehicle_number]], 0, vehicle_number, 1)
-        temp_layout.addWidget(IMU_sensor_widget)
+        for label_text in ("DVL", "GPS", "IMU"):
+            temp_layout.addWidget(self.create_icon_and_text(label_text, self.icons_dict[self.feedback_dict[label_text][vehicle_number]], 0, vehicle_number, 1))
+            temp_layout.addSpacing(10)
 
         # Return the container widget holding all status icons
         return temp_container
@@ -2426,57 +2645,68 @@ class MainWindow(QMainWindow):
     def create_specific_vehicle_column01(self, vehicle_number):
         """
         Creates the second sub-column in the first column of the specific Vehicle pages.
-        This column displays the mission section and the status widgets for the given Vehicle.
-        Arranges status labels for position, depth, heading, waypoint, velocity, battery, and pressure.
+        This column displays the mission section and the status widgets for the given Vehicle,
+        grouped inside a bordered status card (position, mission progress, telemetry) for readability.
         Returns the container widget for the column.
         """
-        # Create a vertical layout for the column and set margins and spacing
+        # Create a vertical layout to hold the card's contents
         temp_layout = QVBoxLayout()
-        temp_layout.setContentsMargins(0, 0, 0, 0)
-        # temp_layout.setSpacing(0) 
+        temp_layout.setSpacing(0)
+
+        # Wrap the section in a rounded card so it reads as one visual group
+        card = self.create_status_card(temp_layout)
 
         # Create the container widget for this column and store it as an attribute
         temp_container = QWidget()
-        # Optionally set a maximum width for the container
-        # temp_container.setMaximumWidth(220)
         setattr(self, f"vehicle{vehicle_number}_column01_layout", temp_layout)
         setattr(self, f"vehicle{vehicle_number}_column01_widget", temp_container)
         container_layout = QVBoxLayout(temp_container)
-        container_layout.addLayout(temp_layout)
+        container_layout.setContentsMargins(0, 0, 0, 0)
 
-        # Add an (optional) title label at the top
-        temp_layout.addWidget(self.create_title_label(f""), alignment=Qt.AlignmentFlag.AlignTop)
+        # Add a blank title label at the top so this card's top edge lines up with the
+        # Connections/Sensors card in the previous column (which has a real title above it)
+        container_layout.addWidget(self.create_title_label(""), alignment=Qt.AlignmentFlag.AlignTop)
+        container_layout.addSpacing(10)
+        container_layout.addWidget(card)
 
-        # Status widgets section
+        # Status widgets section, arranged as a compact two-column grid of related-field
+        # pairs and grouped Mission -> Position -> Telemetry (most operationally relevant,
+        # i.e. what the mission is doing right now, first).
         status_spacing = 10
-        temp_layout.addSpacing(status_spacing)
-        temp_layout.addWidget(self.create_title_label(f"Status"), alignment=Qt.AlignmentFlag.AlignTop)
-        temp_layout.addSpacing(status_spacing)
-        temp_layout.addWidget(self.create_normal_label("x (m): x", f"XPos{vehicle_number}"), alignment=Qt.AlignmentFlag.AlignVCenter)
-        temp_layout.addSpacing(status_spacing)
-        temp_layout.addWidget(self.create_normal_label("y (m): y", f"YPos{vehicle_number}"), alignment=Qt.AlignmentFlag.AlignVCenter)
-        temp_layout.addSpacing(status_spacing)
-        temp_layout.addWidget(self.create_normal_label("Depth (m): d", f"Depth{vehicle_number}"), alignment=Qt.AlignmentFlag.AlignVCenter)
-        temp_layout.addSpacing(status_spacing)
-        temp_layout.addWidget(self.create_normal_label("Heading (deg): h", f"Heading{vehicle_number}"), alignment=Qt.AlignmentFlag.AlignVCenter)
-        temp_layout.addSpacing(status_spacing)
-        temp_layout.addWidget(self.create_normal_label("Mission State: Idle", f"Mission_state{vehicle_number}"), alignment=Qt.AlignmentFlag.AlignVCenter)
-        temp_layout.addSpacing(status_spacing)
-        temp_layout.addWidget(self.create_normal_label("Mission Time: 0.0 s", f"Mission_time{vehicle_number}"), alignment=Qt.AlignmentFlag.AlignVCenter)
-        temp_layout.addSpacing(status_spacing)
-        temp_layout.addWidget(self.create_normal_label("Current Waypoint: w", f"Waypoint{vehicle_number}"), alignment=Qt.AlignmentFlag.AlignVCenter)
-        temp_layout.addSpacing(status_spacing)
-        temp_layout.addSpacing(status_spacing)
-        temp_layout.addWidget(self.create_normal_label("Waypoint State: Idle", f"Waypoint_state{vehicle_number}"), alignment=Qt.AlignmentFlag.AlignVCenter)
-        temp_layout.addSpacing(status_spacing)
-        temp_layout.addWidget(self.create_normal_label("Distance to Next WP (m): x", f"Waypoint_distance{vehicle_number}"), alignment=Qt.AlignmentFlag.AlignVCenter)
-        temp_layout.addSpacing(status_spacing)
-        temp_layout.addWidget(self.create_normal_label("DVL Velocity <br>(m/s): v", f"DVL_vel{vehicle_number}"), alignment=Qt.AlignmentFlag.AlignVCenter)
-        temp_layout.addSpacing(status_spacing)
+        temp_layout.addWidget(self.create_section_header_label("Status"))
+        temp_layout.addSpacing(status_spacing + 4)
 
-        temp_layout.addWidget(self.create_normal_label("Battery (V): b", f"Battery{vehicle_number}"), alignment=Qt.AlignmentFlag.AlignVCenter)
-        temp_layout.addSpacing(status_spacing)
-        temp_layout.addWidget(self.create_normal_label("Pressure (Pa):<br>p", f"Pressure{vehicle_number}"), alignment=Qt.AlignmentFlag.AlignVCenter)
+        # Mission progress: state paired with elapsed time, waypoint id paired with its
+        # state, and distance-to-go spans the row on its own since it has no natural pair.
+        temp_layout.addWidget(self.create_group_label("Mission"))
+        temp_layout.addSpacing(6)
+        temp_layout.addLayout(self.create_status_grid([
+            [("Mission State: Idle", f"Mission_state{vehicle_number}"), ("Mission Time: 0.0 s", f"Mission_time{vehicle_number}")],
+            [("Current Waypoint: w", f"Waypoint{vehicle_number}"), ("Waypoint State: Idle", f"Waypoint_state{vehicle_number}")],
+            [("Distance to Next WP (m): x", f"Waypoint_distance{vehicle_number}")],
+        ]))
+        temp_layout.addSpacing(status_spacing + 4)
+        temp_layout.addWidget(self.make_hline())
+        temp_layout.addSpacing(status_spacing + 4)
+
+        # Position & heading: x/y coordinates paired, depth/heading paired.
+        temp_layout.addWidget(self.create_group_label("Position"))
+        temp_layout.addSpacing(6)
+        temp_layout.addLayout(self.create_status_grid([
+            [("x (m): x", f"XPos{vehicle_number}"), ("y (m): y", f"YPos{vehicle_number}")],
+            [("Depth (m): d", f"Depth{vehicle_number}"), ("Heading (deg): h", f"Heading{vehicle_number}")],
+        ]))
+        temp_layout.addSpacing(status_spacing + 4)
+        temp_layout.addWidget(self.make_hline())
+        temp_layout.addSpacing(status_spacing + 4)
+
+        # Telemetry / vehicle health: battery and pressure paired, DVL velocity on its own.
+        temp_layout.addWidget(self.create_group_label("Telemetry"))
+        temp_layout.addSpacing(6)
+        temp_layout.addLayout(self.create_status_grid([
+            [("Battery (V): b", f"Battery{vehicle_number}"), ("Pressure (Pa):<br>p", f"Pressure{vehicle_number}")],
+            [("DVL Velocity <br>(m/s): v", f"DVL_vel{vehicle_number}")],
+        ]))
 
         # Return the container widget holding the mission and status widgets
         return temp_container

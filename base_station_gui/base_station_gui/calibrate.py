@@ -14,8 +14,6 @@ import rclpy
 from rclpy.node import Node
 global ros_node
 
-# TODO: THIS FILE NEEDS TO BE UPDATE WITH THE PATHS!!!1
-
 # SSH configuration
 SSH_KEY_PATH = str(Path.home()) + "/.ssh/id_ed25519_cougs"
 DEPLOY_CONFIG_PATH = os.environ.get(
@@ -23,14 +21,15 @@ DEPLOY_CONFIG_PATH = os.environ.get(
     str(Path.home() / "config" / "cougars-config" / "base_station" / "deploy_config.json")
 )
 
-#Confirmed: This exists
-VEHICLE_PARAMS_PATH = os.path.expanduser("~/config/vehicle_params.yaml")
-#Confirmed: This exists
-PYTHON_SCRIPT = os.path.expanduser("~/ros2_ws/update_yaml.py")
-#Confirmed: This exists
-DVL_DIR = os.path.expanduser("~/ros2_ws/dvl_tools")
 NODE_NAME = "depth_convertor"
 ROS_PARAM_NAME = "fluid_pressure_atm"
+
+def local_vehicle_params_path(vehicle_number):
+    """
+    Path to this vehicle's vehicle_params.yaml in the base station's local
+    cougars-config checkout (config/cougars-config/coug{N}/vehicle_params.yaml).
+    """
+    return os.path.expanduser(f"~/config/cougars-config/coug{vehicle_number}/vehicle_params.yaml")
 
 def get_vehicle_config(vehicle_number):
     """Get vehicle configuration from deploy config file."""
@@ -209,20 +208,28 @@ def get_ros_param(namespace, vehicle):
     return None
 
 def update_yaml_param(file_path, param_name, value, node_name, namespace, vehicle):
-    with open(file_path, 'r') as f:
-        data = yaml.safe_load(f)
+    """
+    Updates a single ROS param value in the vehicle's local cougars-config YAML file.
+    Logs (rather than raises) on failure, so one vehicle's problem - e.g. a missing
+    file - doesn't silently abort the rest of a multi-vehicle calibration batch.
+    """
+    try:
+        with open(file_path, 'r') as f:
+            data = yaml.safe_load(f)
 
-    if namespace not in data:
-        data[namespace] = {}
-    if node_name not in data[namespace]:
-        data[namespace][node_name] = {}
-    
-    data[namespace][node_name][param_name] = float(value)
+        if namespace not in data:
+            data[namespace] = {}
+        if node_name not in data[namespace]:
+            data[namespace][node_name] = {}
 
-    with open(file_path, 'w') as f:
-        yaml.dump(data, f)
+        data[namespace][node_name][param_name] = float(value)
 
-    ros_node.publish_console_log(f"[INFO] Updated {file_path} with {param_name} = {value} under {namespace}/{node_name}", vehicle)
+        with open(file_path, 'w') as f:
+            yaml.dump(data, f)
+
+        ros_node.publish_console_log(f"[INFO] Updated {file_path} with {param_name} = {value} under {namespace}/{node_name}", vehicle)
+    except Exception as e:
+        ros_node.publish_console_log(f"[ERROR] Failed to update {file_path}: {e}", vehicle)
 
 # ----------------------------
 # MAIN SCRIPT LOGIC
@@ -232,27 +239,27 @@ def main(passed_ros_node, vehicle_numbers):
     ros_node = passed_ros_node
 
     for vehicle in vehicle_numbers:
-        namespace = f"coug{vehicle}"
+        try:
+            namespace = f"coug{vehicle}"
 
-        ros_node.publish_console_log(f"Running run_service_call...", vehicle)
-        #run calibrate depth service
-        run_service_call(f"{namespace}/calibrate_depth", "std_srvs/srv/Trigger", "{}", vehicle=vehicle)
+            ros_node.publish_console_log(f"Running run_service_call...", vehicle)
+            #run calibrate depth service
+            run_service_call(f"{namespace}/calibrate_depth", "std_srvs/srv/Trigger", "{}", vehicle=vehicle)
 
-        ros_node.publish_console_log(f"Running calibrate_gyro.sh...", vehicle)
-        #run calibrate gyro script (remote DVL directory)
-        remote_dvl_dir = "~/ros2_ws/dvl_tools"
-        run_script(f"{remote_dvl_dir}/calibrate_gyro.sh", vehicle=vehicle)
+            ros_node.publish_console_log(f"Running calibrate_gyro.sh...", vehicle)
+            #run calibrate gyro script (remote DVL directory)
+            remote_dvl_dir = "~/ros2_ws/dvl_tools"
+            run_script(f"{remote_dvl_dir}/calibrate_gyro.sh", vehicle=vehicle)
 
-        ros_node.publish_console_log(f"Running set_ntp...", vehicle)
-        # run ntp script (remote DVL directory) 
-        run_script(f"{remote_dvl_dir}/set_ntp.sh", vehicle=vehicle)
-
-        ros_node.publish_console_log(f"Running get_ros_param...", vehicle)
-        # get fluid_pressure_atm param value
-        param_value = get_ros_param(namespace, vehicle=vehicle)
-        if param_value:
-            update_yaml_param(VEHICLE_PARAMS_PATH, ROS_PARAM_NAME, param_value, NODE_NAME, namespace, vehicle=vehicle)
-        ros_node.publish_console_log(f"Calibrate.py finished", vehicle)
+            ros_node.publish_console_log(f"Running get_ros_param...", vehicle)
+            # get fluid_pressure_atm param value
+            param_value = get_ros_param(namespace, vehicle=vehicle)
+            if param_value:
+                update_yaml_param(local_vehicle_params_path(vehicle), ROS_PARAM_NAME, param_value, NODE_NAME, namespace, vehicle=vehicle)
+            ros_node.publish_console_log(f"Calibrate.py finished", vehicle)
+        except Exception as e:
+            # Catch-all so one vehicle's failure doesn't stop the rest of the batch.
+            ros_node.publish_console_log(f"[ERROR] Calibration failed for vehicle {vehicle}: {e}", vehicle)
 
 if __name__ == "__main__":
     main()
