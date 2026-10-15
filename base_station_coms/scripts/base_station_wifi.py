@@ -87,10 +87,17 @@ class VehicleWifiConnection:
             10
         )
 
+        # Vehicle /origin subscribers (gps_odom, waypoint_controller, emergency_protocols)
+        # are TRANSIENT_LOCAL; a VOLATILE publisher is incompatible and never delivers.
+        origin_qos = QoSProfile(
+            depth=1,
+            reliability=QoSReliabilityPolicy.RELIABLE,
+            durability=QoSDurabilityPolicy.TRANSIENT_LOCAL,
+        )
         self.origin_publisher = node.create_publisher(
             GeoPoint,
             f'/origin',
-            10
+            origin_qos
         )
 
         self.link_status_subscriber = node.create_subscription(
@@ -118,7 +125,7 @@ class VehicleWifiConnection:
             GeoPoint,
             f'/send_origin',
             self.origin_callback,
-            10
+            origin_qos
         )
 
         self.emergency_kill_subscriber = node.create_subscription(
