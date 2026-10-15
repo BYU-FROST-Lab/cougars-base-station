@@ -5,7 +5,7 @@ from rclpy.node import Node
 from rclpy.qos import QoSProfile, QoSReliabilityPolicy, QoSDurabilityPolicy, QoSHistoryPolicy
 from rclpy.serialization import serialize_message
 from base_station_interfaces.msg import ConsoleLog, UCommandBase
-from cougars_interfaces.msg import MissionFeedback, SystemControl, WaypointFeedback
+from cougars_interfaces.msg import MissionFeedback, SystemControl, SystemStatus, WaypointFeedback
 from diagnostic_msgs.msg import DiagnosticStatus, KeyValue
 from dvl_msgs.msg import DVL
 from geographic_msgs.msg import GeoPoint, RouteNetwork
@@ -81,6 +81,12 @@ class VehicleRadioConnection:
         self.mission_feedback_publisher = node.create_publisher(
             MissionFeedback,
             f'coug{vehicle_id}/mission_feedback',
+            10
+        )
+
+        self.safety_status_publisher = node.create_publisher(
+            SystemStatus,
+            f'coug{vehicle_id}/safety_status',
             10
         )
 
@@ -399,6 +405,19 @@ class VehicleRadioConnection:
         if waypoint_msg is not None:
             mission_msg.current = waypoint_msg
         self.mission_feedback_publisher.publish(mission_msg)
+
+        # Only publish once the vehicle has actually received a safety status,
+        # otherwise the default zeros would show every sensor as healthy
+        if status.safety_valid:
+            safety_msg = SystemStatus()
+            safety_msg.header.stamp = now
+            safety_msg.imu_published.data = status.imu_published
+            safety_msg.depth_status.data = status.depth_status
+            safety_msg.gps_status.data = status.gps_status
+            safety_msg.modem_status.data = status.modem_status
+            safety_msg.dvl_status.data = status.dvl_status
+            safety_msg.emergency_status.data = status.emergency_status
+            self.safety_status_publisher.publish(safety_msg)
 
 
 
