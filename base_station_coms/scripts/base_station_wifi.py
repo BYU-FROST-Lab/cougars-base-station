@@ -80,17 +80,24 @@ class VehicleWifiConnection:
         )
 
         # Forwards the GUI's hardware control "intent" topic to the vehicle's actual
-        # ROS topic (rf_bridge.py listens on the un-namespaced 'hardware_control_cmd').
+        # ROS topic (cougars_coms listens on the namespaced 'hardware_control_cmd').
         self.hardware_control_publisher = node.create_publisher(
             String,
             f'coug{vehicle_id}/hardware_control_cmd',
             10
         )
 
+        # Vehicle /origin subscribers (gps_odom, waypoint_controller, emergency_protocols)
+        # are TRANSIENT_LOCAL; a VOLATILE publisher is incompatible and never delivers.
+        origin_qos = QoSProfile(
+            depth=1,
+            reliability=QoSReliabilityPolicy.RELIABLE,
+            durability=QoSDurabilityPolicy.TRANSIENT_LOCAL,
+        )
         self.origin_publisher = node.create_publisher(
             GeoPoint,
             f'/origin',
-            10
+            origin_qos
         )
 
         self.link_status_subscriber = node.create_subscription(
@@ -118,7 +125,7 @@ class VehicleWifiConnection:
             GeoPoint,
             f'/send_origin',
             self.origin_callback,
-            10
+            origin_qos
         )
 
         self.emergency_kill_subscriber = node.create_subscription(
@@ -204,6 +211,9 @@ class VehicleWifiConnection:
             f"Sending hardware control '{msg.data}' to vehicle {self.vehicle_id} over WiFi"
         )
         self.hardware_control_publisher.publish(msg)
+        self.node.console_log.publish(ConsoleLog(
+            message=f"Sent hardware control {msg.data} over WiFi",
+            vehicle_number=self.vehicle_id))
 
     def ping(self):
         if not self.node.is_wifi_enabled():

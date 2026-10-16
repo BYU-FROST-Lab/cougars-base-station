@@ -355,7 +355,7 @@ class MainWindow(QMainWindow):
 
             "Waypoint_state": {vehicle_num: "Idle" for vehicle_num in self.selected_vehicles},
 
-            "Waypoint_distance": {vehicle_num: "x" for vehicle_num in self.selected_vehicles},
+            "Waypoint_distance": {vehicle_num: 0 for vehicle_num in self.selected_vehicles},
 
             #Vehicles 1-3 Linear Velocities, list of ints
             "DVL_vel": {vehicle_num: 2 for vehicle_num in self.selected_vehicles},
@@ -1550,7 +1550,7 @@ class MainWindow(QMainWindow):
     def hardware_control_button(self, vehicle_number):
         """
         Handler for 'Relay / Strobe Control' button.
-        Opens a dialog that sends relay/strobe auto/on/off commands to the vehicle over radio.
+        Opens a dialog that sends relay/strobe auto/on/off commands to the vehicle over WiFi, or radio if WiFi is disconnected.
         """
         dlg = HardwareControlDialog(
             vehicle_number,
@@ -2460,31 +2460,31 @@ class MainWindow(QMainWindow):
         temp_layout.addSpacing(status_spacing)
         temp_layout.addWidget(self.create_title_label(f"Status"), alignment=Qt.AlignmentFlag.AlignTop)
         temp_layout.addSpacing(status_spacing)
-        temp_layout.addWidget(self.create_normal_label("x (m): x", f"XPos{vehicle_number}"), alignment=Qt.AlignmentFlag.AlignVCenter)
+        temp_layout.addWidget(self.create_normal_label("x (m): 0", f"XPos{vehicle_number}"), alignment=Qt.AlignmentFlag.AlignVCenter)
         temp_layout.addSpacing(status_spacing)
-        temp_layout.addWidget(self.create_normal_label("y (m): y", f"YPos{vehicle_number}"), alignment=Qt.AlignmentFlag.AlignVCenter)
+        temp_layout.addWidget(self.create_normal_label("y (m): 0", f"YPos{vehicle_number}"), alignment=Qt.AlignmentFlag.AlignVCenter)
         temp_layout.addSpacing(status_spacing)
-        temp_layout.addWidget(self.create_normal_label("Depth (m): d", f"Depth{vehicle_number}"), alignment=Qt.AlignmentFlag.AlignVCenter)
+        temp_layout.addWidget(self.create_normal_label("Depth (m): 0", f"Depth{vehicle_number}"), alignment=Qt.AlignmentFlag.AlignVCenter)
         temp_layout.addSpacing(status_spacing)
-        temp_layout.addWidget(self.create_normal_label("Heading (deg): h", f"Heading{vehicle_number}"), alignment=Qt.AlignmentFlag.AlignVCenter)
+        temp_layout.addWidget(self.create_normal_label("Heading (deg): 0", f"Heading{vehicle_number}"), alignment=Qt.AlignmentFlag.AlignVCenter)
         temp_layout.addSpacing(status_spacing)
         temp_layout.addWidget(self.create_normal_label("Mission State: Idle", f"Mission_state{vehicle_number}"), alignment=Qt.AlignmentFlag.AlignVCenter)
         temp_layout.addSpacing(status_spacing)
         temp_layout.addWidget(self.create_normal_label("Mission Time: 0.0 s", f"Mission_time{vehicle_number}"), alignment=Qt.AlignmentFlag.AlignVCenter)
         temp_layout.addSpacing(status_spacing)
-        temp_layout.addWidget(self.create_normal_label("Current Waypoint: w", f"Waypoint{vehicle_number}"), alignment=Qt.AlignmentFlag.AlignVCenter)
+        temp_layout.addWidget(self.create_normal_label("Current Waypoint: 0", f"Waypoint{vehicle_number}"), alignment=Qt.AlignmentFlag.AlignVCenter)
         temp_layout.addSpacing(status_spacing)
         temp_layout.addSpacing(status_spacing)
         temp_layout.addWidget(self.create_normal_label("Waypoint State: Idle", f"Waypoint_state{vehicle_number}"), alignment=Qt.AlignmentFlag.AlignVCenter)
         temp_layout.addSpacing(status_spacing)
-        temp_layout.addWidget(self.create_normal_label("Distance to Next WP (m): x", f"Waypoint_distance{vehicle_number}"), alignment=Qt.AlignmentFlag.AlignVCenter)
+        temp_layout.addWidget(self.create_normal_label("Distance to Next WP (m): 0", f"Waypoint_distance{vehicle_number}"), alignment=Qt.AlignmentFlag.AlignVCenter)
         temp_layout.addSpacing(status_spacing)
-        temp_layout.addWidget(self.create_normal_label("DVL Velocity <br>(m/s): v", f"DVL_vel{vehicle_number}"), alignment=Qt.AlignmentFlag.AlignVCenter)
+        temp_layout.addWidget(self.create_normal_label("DVL Velocity <br>(m/s): 0", f"DVL_vel{vehicle_number}"), alignment=Qt.AlignmentFlag.AlignVCenter)
         temp_layout.addSpacing(status_spacing)
 
-        temp_layout.addWidget(self.create_normal_label("Battery (V): b", f"Battery{vehicle_number}"), alignment=Qt.AlignmentFlag.AlignVCenter)
+        temp_layout.addWidget(self.create_normal_label("Battery (V): 0", f"Battery{vehicle_number}"), alignment=Qt.AlignmentFlag.AlignVCenter)
         temp_layout.addSpacing(status_spacing)
-        temp_layout.addWidget(self.create_normal_label("Pressure (Pa):<br>p", f"Pressure{vehicle_number}"), alignment=Qt.AlignmentFlag.AlignVCenter)
+        temp_layout.addWidget(self.create_normal_label("Pressure (Pa):<br>0", f"Pressure{vehicle_number}"), alignment=Qt.AlignmentFlag.AlignVCenter)
 
         # Return the container widget holding the mission and status widgets
         return temp_container
@@ -3242,7 +3242,7 @@ def load_origin_presets():
 
 class HardwareControlDialog(QDialog):
     """
-    Dialog for turning the DVL/modem relay and nav light strobe on/off/auto over radio.
+    Dialog for turning the DVL/modem relay and nav light strobe on/off/auto over WiFi or radio.
     Each button sends its command to the vehicle immediately; the dialog stays open
     so both the relay and the strobe can be controlled independently.
     """
