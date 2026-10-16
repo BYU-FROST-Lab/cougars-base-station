@@ -14,6 +14,7 @@ import yaml # Added for YAML saving
 PRESET_ORIGINS = {
     "UL Provo Marina": {"lat": 40.238947, "lon": -111.739538, "alt": 1365.4333},
     "Spanish Oaks": {"lat": 40.0717592, "lon": -111.6001751, "alt": 1564.568},
+    "Shoreline Park": {"lat": 40.360052, "lon": -111.862453, "alt": 1368.0},
 }
 
 class App:
